@@ -400,6 +400,26 @@ void* handle_client(void* arg) {
                 break;
             }
             
+            case CMD_LOGOUT: {
+                if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in");
+                    break;
+                }
+
+                /* mark user offline but keep connection open */
+                current_user->is_online = false;
+                current_user->socket = INVALID_SOCKET;
+                send_response(client_socket, CMD_SUCCESS, "Logged out");
+                log_activity(current_user->username, "LOGOUT", "User logged out");
+
+                /* notify friends user went offline */
+                broadcast_to_friends(state, current_user->username, "User logged out");
+
+                /* forget current_user for this connection so new login may happen */
+                current_user = NULL;
+                break;
+            }
+
             case CMD_DISCONNECT: {
                 if (current_user) {
                     current_user->is_online = false;

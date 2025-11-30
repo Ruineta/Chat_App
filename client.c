@@ -13,6 +13,7 @@
 socket_t client_socket;
 bool is_connected = false;
 char current_username[MAX_USERNAME] = "";
+bool is_logged_in = false;
 
 // Initialize client socket
 int init_client(socket_t* client_socket, const char* server_ip) {
@@ -108,9 +109,22 @@ void receive_response(socket_t socket) {
             break;
         case CMD_SUCCESS:
             printf("Success: %s\n", msg->content);
+            /* Update client login state based on server messages */
+            if (strcmp(msg->content, "Login successful") == 0) {
+                is_logged_in = true;
+            } else if (strcmp(msg->content, "Logged out") == 0) {
+                /* Server confirmed logout */
+                is_logged_in = false;
+                current_username[0] = '\0';
+            }
             break;
         case CMD_ERROR:
             printf("Error: %s\n", msg->content);
+            if (strcmp(msg->content, "Invalid credentials") == 0) {
+                /* clear pending username on failed login */
+                current_username[0] = '\0';
+                is_logged_in = false;
+            }
             break;
         case CMD_GET_FRIENDS:
             printf("%s\n", msg->content);
@@ -138,26 +152,34 @@ void* receive_thread(void* arg) {
     return NULL;
 }
 
-// Print menu
+// Print menu (two modes: not-logged-in and logged-in)
 void print_menu() {
     printf("\n=== Chat Application Menu ===\n");
-    printf("1. Register\n");
-    printf("2. Login\n");
-    printf("3. Get Friends List\n");
-    printf("4. Add Friend\n");
-    printf("5. Send Message (1-1)\n");
-    printf("6. Create Group\n");
-    printf("7. Add User to Group\n");
-    printf("8. Remove User from Group\n");
-    printf("9. Leave Group\n");
-    printf("10. Send Group Message\n");
-    printf("11. Search Chat History\n");
-    printf("12. Set Group Name\n");
-    printf("13. Block User\n");
-    printf("14. Unblock User\n");
-    printf("15. Pin Message\n");
-    printf("16. Get Pinned Messages\n");
-    printf("17. Disconnect\n");
+    if (!is_logged_in) {
+        printf("1. Register\n");
+        printf("2. Login\n");
+        printf("0. Exit\n");
+        printf("Choice: ");
+        return;
+    }
+
+    // Logged-in menu: replace Register with Logout, keep other features
+    printf("1. Logout\n");
+    printf("2. Get Friends List\n");
+    printf("3. Add Friend\n");
+    printf("4. Send Message (1-1)\n");
+    printf("5. Create Group\n");
+    printf("6. Add User to Group\n");
+    printf("7. Remove User from Group\n");
+    printf("8. Leave Group\n");
+    printf("9. Send Group Message\n");
+    printf("10. Search Chat History\n");
+    printf("11. Set Group Name\n");
+    printf("12. Block User\n");
+    printf("13. Unblock User\n");
+    printf("14. Pin Message\n");
+    printf("15. Get Pinned Messages\n");
+    printf("16. Disconnect\n");
     printf("0. Exit\n");
     printf("Choice: ");
 }
@@ -177,232 +199,250 @@ void handle_user_input(socket_t socket, const char* username) {
         choice = atoi(input);
         ProtocolMessage msg;
         memset(&msg, 0, sizeof(ProtocolMessage));
-        strncpy(msg.sender, username, MAX_USERNAME - 1);
-        
-        switch (choice) {
-            case 1: {  // Register
-                char password[MAX_USERNAME];
-                printf("Enter username: ");
-                fgets(msg.sender, sizeof(msg.sender), stdin);
-                trim_newline(msg.sender);
-                printf("Enter password: ");
-                fgets(password, sizeof(password), stdin);
-                trim_newline(password);
-                
-                msg.cmd = CMD_REGISTER;
-                strncpy(msg.content, password, MAX_CONTENT - 1);
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 2: {  // Login
-                char password[MAX_USERNAME];
-                printf("Enter username: ");
-                fgets(msg.sender, sizeof(msg.sender), stdin);
-                trim_newline(msg.sender);
-                printf("Enter password: ");
-                fgets(password, sizeof(password), stdin);
-                trim_newline(password);
-                
-                strncpy(current_username, msg.sender, MAX_USERNAME - 1);
-                msg.cmd = CMD_LOGIN;
-                strncpy(msg.content, password, MAX_CONTENT - 1);
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 3: {  // Get Friends
-                msg.cmd = CMD_GET_FRIENDS;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 4: {  // Add Friend
-                printf("Enter username to add as friend: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_ADD_FRIEND;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 5: {  // Send Message
-                printf("Enter recipient username: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                printf("Enter message: ");
-                fgets(msg.content, sizeof(msg.content), stdin);
-                trim_newline(msg.content);
-                printf("Is emoji? (y/n): ");
-                char emoji_choice = getchar();
-                getchar();  // consume newline
-                msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
-                
-                msg.cmd = CMD_SEND_MESSAGE;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 6: {  // Create Group
-                printf("Enter group name: ");
-                fgets(msg.content, sizeof(msg.content), stdin);
-                trim_newline(msg.content);
-                
-                msg.cmd = CMD_CREATE_GROUP;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 7: {  // Add to Group
-                printf("Enter group ID: ");
-                fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                trim_newline(msg.extra_data);
-                printf("Enter username to add: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_ADD_TO_GROUP;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 8: {  // Remove from Group
-                printf("Enter group ID: ");
-                fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                trim_newline(msg.extra_data);
-                printf("Enter username to remove: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_REMOVE_FROM_GROUP;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 9: {  // Leave Group
-                printf("Enter group ID: ");
-                fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                trim_newline(msg.extra_data);
-                
-                msg.cmd = CMD_LEAVE_GROUP;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 10: {  // Group Message
-                printf("Enter group ID: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                printf("Enter message: ");
-                fgets(msg.content, sizeof(msg.content), stdin);
-                trim_newline(msg.content);
-                printf("Is emoji? (y/n): ");
-                char emoji_choice = getchar();
-                getchar();
-                msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
-                
-                msg.cmd = CMD_GROUP_MESSAGE;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 11: {  // Search History
-                printf("Enter search keyword: ");
-                fgets(msg.content, sizeof(msg.content), stdin);
-                trim_newline(msg.content);
-                printf("Enter recipient (or group ID, leave empty for all): ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_SEARCH_HISTORY;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 12: {  // Set Group Name
-                printf("Enter group ID: ");
-                fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                trim_newline(msg.extra_data);
-                printf("Enter new group name: ");
-                fgets(msg.content, sizeof(msg.content), stdin);
-                trim_newline(msg.content);
-                
-                msg.cmd = CMD_SET_GROUP_NAME;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 13: {  // Block User
-                printf("Enter username to block: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_BLOCK_USER;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 14: {  // Unblock User
-                printf("Enter username to unblock: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_UNBLOCK_USER;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 15: {  // Pin Message
-                printf("Enter group ID or recipient: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                printf("Enter message ID to pin: ");
-                fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                trim_newline(msg.extra_data);
-                
-                msg.cmd = CMD_PIN_MESSAGE;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 16: {  // Get Pinned
-                printf("Enter group ID or recipient: ");
-                fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                trim_newline(msg.recipient);
-                
-                msg.cmd = CMD_GET_PINNED;
-                send_command(socket, &msg);
-                break;
-            }
-            
-            case 17: {  // Disconnect
-                msg.cmd = CMD_DISCONNECT;
-                send_command(socket, &msg);
-                is_connected = false;
-                break;
-            }
-            
-            case 0:  // Exit
-                msg.cmd = CMD_DISCONNECT;
-                send_command(socket, &msg);
-                is_connected = false;
-                return;
-            
-            default:
-                printf("Invalid choice\n");
-                break;
+        /* If the client is logged in use the stored username as sender */
+        if (is_logged_in && current_username[0] != '\0') {
+            strncpy(msg.sender, current_username, MAX_USERNAME - 1);
+        } else {
+            strncpy(msg.sender, username, MAX_USERNAME - 1);
         }
+
+        if (!is_logged_in) {
+            /* Minimal menu when not logged in */
+            switch (choice) {
+                case 1: {  // Register
+                    char password[MAX_USERNAME];
+                    printf("Enter username: ");
+                    fgets(msg.sender, sizeof(msg.sender), stdin);
+                    trim_newline(msg.sender);
+                    printf("Enter password: ");
+                    fgets(password, sizeof(password), stdin);
+                    trim_newline(password);
+                    msg.cmd = CMD_REGISTER;
+                    strncpy(msg.content, password, MAX_CONTENT - 1);
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 2: {  // Login
+                    char password[MAX_USERNAME];
+                    printf("Enter username: ");
+                    fgets(msg.sender, sizeof(msg.sender), stdin);
+                    trim_newline(msg.sender);
+                    printf("Enter password: ");
+                    fgets(password, sizeof(password), stdin);
+                    trim_newline(password);
+
+                    strncpy(current_username, msg.sender, MAX_USERNAME - 1);
+                    msg.cmd = CMD_LOGIN;
+                    strncpy(msg.content, password, MAX_CONTENT - 1);
+                    send_command(socket, &msg);
+
+                    /* Wait for server response (receive_response runs in separate thread)
+                       Poll is_logged_in or current_username cleared by receive_response on failure
+                       Timeout after ~3 seconds */
+                    int waited_ms = 0;
+                    const int step_ms = 100; /* 100ms */
+                    const int max_wait_ms = 3000; /* 3s */
+                    while (waited_ms < max_wait_ms && !is_logged_in && current_username[0] != '\0') {
+                        #ifdef _WIN32
+                        Sleep(step_ms);
+                        #else
+                        usleep(step_ms * 1000);
+                        #endif
+                        waited_ms += step_ms;
+                    }
+
+                    if (is_logged_in) {
+                        printf("Logged in as %s\n", current_username);
+                    } else if (current_username[0] == '\0') {
+                        printf("Login failed\n");
+                    } else {
+                        printf("Login timed out, please try again\n");
+                        /* reset pending username */
+                        current_username[0] = '\0';
+                    }
+                    break;
+                }
+                case 0: { // Exit
+                    msg.cmd = CMD_DISCONNECT;
+                    send_command(socket, &msg);
+                    is_connected = false;
+                    return;
+                }
+                default:
+                    printf("Invalid choice\n");
+                    break;
+            }
+        } else {
+            /* Logged in: Map choices where 1=Logout, 2.. -> other features (shifted from previous numbering)
+               This keeps behaviour similar to earlier menu but forbids registration while logged in */
+            switch (choice) {
+                case 1: {  // Logout
+                    msg.cmd = CMD_LOGOUT;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 2: {
+                    msg.cmd = CMD_GET_FRIENDS;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 3: {  // Add Friend
+                    printf("Enter username to add as friend: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_ADD_FRIEND;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 4: {  // Send Message
+                    printf("Enter recipient username: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    printf("Enter message: ");
+                    fgets(msg.content, sizeof(msg.content), stdin);
+                    trim_newline(msg.content);
+                    printf("Is emoji? (y/n): ");
+                    char emoji_choice = getchar();
+                    getchar();  // consume newline
+                    msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
+                    msg.cmd = CMD_SEND_MESSAGE;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 5: {  // Create Group
+                    printf("Enter group name: ");
+                    fgets(msg.content, sizeof(msg.content), stdin);
+                    trim_newline(msg.content);
+                    msg.cmd = CMD_CREATE_GROUP;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 6: {  // Add to Group
+                    printf("Enter group ID: ");
+                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
+                    trim_newline(msg.extra_data);
+                    printf("Enter username to add: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_ADD_TO_GROUP;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 7: {  // Remove from Group
+                    printf("Enter group ID: ");
+                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
+                    trim_newline(msg.extra_data);
+                    printf("Enter username to remove: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_REMOVE_FROM_GROUP;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 8: {  // Leave Group
+                    printf("Enter group ID: ");
+                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
+                    trim_newline(msg.extra_data);
+                    msg.cmd = CMD_LEAVE_GROUP;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 9: {  // Group Message
+                    printf("Enter group ID: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    printf("Enter message: ");
+                    fgets(msg.content, sizeof(msg.content), stdin);
+                    trim_newline(msg.content);
+                    printf("Is emoji? (y/n): ");
+                    char emoji_choice = getchar();
+                    getchar();
+                    msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
+                    msg.cmd = CMD_GROUP_MESSAGE;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 10: {  // Search History
+                    printf("Enter search keyword: ");
+                    fgets(msg.content, sizeof(msg.content), stdin);
+                    trim_newline(msg.content);
+                    printf("Enter recipient (or group ID, leave empty for all): ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_SEARCH_HISTORY;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 11: {  // Set Group Name
+                    printf("Enter group ID: ");
+                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
+                    trim_newline(msg.extra_data);
+                    printf("Enter new group name: ");
+                    fgets(msg.content, sizeof(msg.content), stdin);
+                    trim_newline(msg.content);
+                    msg.cmd = CMD_SET_GROUP_NAME;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 12: {  // Block User
+                    printf("Enter username to block: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_BLOCK_USER;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 13: {  // Unblock User
+                    printf("Enter username to unblock: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_UNBLOCK_USER;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 14: {  // Pin Message
+                    printf("Enter group ID or recipient: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    printf("Enter message ID to pin: ");
+                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
+                    trim_newline(msg.extra_data);
+                    msg.cmd = CMD_PIN_MESSAGE;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 15: {  // Get Pinned
+                    printf("Enter group ID or recipient: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_GET_PINNED;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 16: {  // Disconnect
+                    msg.cmd = CMD_DISCONNECT;
+                    send_command(socket, &msg);
+                    is_connected = false;
+                    break;
+                }
+                default:
+                    printf("Invalid choice\n");
+                    break;
+            }
         
-        // Wait a bit for response
-        #ifdef _WIN32
-        Sleep(100);
-        #else
-        sleep(100000);
-        #endif
-        // Response will be handled by receive thread
+            // Wait a bit for response (short pause so UI feels responsive)
+            #ifdef _WIN32
+            Sleep(100);
+            #else
+            /* usleep takes microseconds */
+            usleep(100000); /* 100ms */
+            #endif
+            // Response will be handled by receive thread
+        }
     }
 }
+
+
 
 // Main client function
 int main(int argc, char* argv[]) {
