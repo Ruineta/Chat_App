@@ -1,5 +1,6 @@
 #include "server.h"  // Includes common.h which has socket libraries
 #include <ctype.h>
+#include "common.h"
 
 // Socket libraries are included via common.h:
 // Windows: winsock2.h, ws2tcpip.h, windows.h
@@ -7,6 +8,59 @@
 
 ServerState server_state;
 
+#define ACCOUNT_FILE "account.txt"
+int account_count = 0;
+
+int load_accounts(const char *filename){
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        /* If account file doesn't exist yet, create it so later append works */
+        FILE *f = fopen(filename, "a");
+        if (!f) {
+            perror("Could not create account file");
+            return -1;
+        }
+        fclose(f);
+        return 0; /* nothing to load */
+    }
+
+    char username[MAX_USERNAME];
+    char password[MAX_USERNAME];
+    int loaded = 0;
+
+    /* Expect lines in the form: username password\n */
+    while (fscanf(file, "%49s %49s", username, password) == 2) {
+        if (server_state.user_count >= (int)(sizeof(server_state.users) / sizeof(server_state.users[0]))) {
+            /* no more space */
+            break;
+        }
+
+        /* add_user will avoid duplicates and initialize fields */
+        add_user(&server_state, username, password);
+        loaded++;
+    }
+
+    fclose(file);
+    return loaded;
+}
+
+int save_account(const char *filename, const char *username, const char *password) {
+    FILE *file = fopen(filename, "a");
+    if (!file) {
+        perror("Could not open account file for appending");
+        return -1;
+    }
+
+    /* Append a single record as "username password" */
+    if (fprintf(file, "%s %s\n", username, password) < 0) {
+        fclose(file);
+        return -1;
+    }
+
+    fflush(file);
+    fclose(file);
+    return 0;
+}
 // Initialize server socket
 int init_server(socket_t* server_socket) {
     #ifdef _WIN32
@@ -77,6 +131,14 @@ int init_server(socket_t* server_socket) {
     #else
     pthread_mutex_init(&server_state.mutex, NULL);
     #endif
+
+    // Load accounts into server_state from persistence file
+    int loaded = load_accounts(ACCOUNT_FILE);
+    if (loaded < 0) {
+        printf("Warning: failed to load accounts from %s\n", ACCOUNT_FILE);
+    } else if (loaded > 0) {
+        printf("Loaded %d accounts from %s\n", loaded, ACCOUNT_FILE);
+    }
 
     printf("Server started on port %d\n", PORT);
     return 0;
@@ -222,6 +284,12 @@ void* handle_client(void* arg) {
                 if (find_user(state, msg->sender) != NULL) {
                     send_response(client_socket, CMD_ERROR, "Username already exists");
                 } else {
+                    /* Persist account first so storage reflects the new user */
+                    if (save_account(ACCOUNT_FILE, msg->sender, msg->content) != 0) {
+                        send_response(client_socket, CMD_ERROR, "Failed to persist account");
+                        break;
+                    }
+
                     add_user(state, msg->sender, msg->content);
                     send_response(client_socket, CMD_SUCCESS, "Registration successful");
                     log_activity(msg->sender, "REGISTER", "New user registered");

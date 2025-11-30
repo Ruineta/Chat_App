@@ -40,6 +40,9 @@ void send_response(socket_t socket, CommandType cmd, const char* content);
 void broadcast_to_friends(ServerState* state, const char* username, const char* message);
 void save_message_to_file(const char* sender, const char* recipient, const char* content, bool is_group);
 char** search_messages(const char* keyword, const char* username, const char* recipient, int* result_count);
+// Account persistence
+int load_accounts(const char* filename);
+int save_account(const char* filename, const char* username, const char* password);
 
 #endif // SERVER_H
 
