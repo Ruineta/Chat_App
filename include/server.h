@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "common.h"  // Includes socket libraries (winsock2.h for Windows, sys/socket.h for Linux)
+#include "common.h"
 
 // Server state
 typedef struct {
@@ -38,8 +38,11 @@ Group* find_group(ServerState* state, const char* group_id);
 void add_user(ServerState* state, const char* username, const char* password);
 void send_response(socket_t socket, CommandType cmd, const char* content);
 void broadcast_to_friends(ServerState* state, const char* username, const char* message);
-void save_message_to_file(const char* sender, const char* recipient, const char* content, bool is_group);
+void notify_recent_chatters(ServerState* state, const char* disconnected_username);
+void save_message_to_file(const char* sender, const char* recipient, const char* content, bool is_group, bool recipient_online, bool is_pinned);
+void load_and_send_offline_messages(socket_t socket, const char* username);
 char** search_messages(const char* keyword, const char* username, const char* recipient, int* result_count);
+void update_message_pin_status_in_file(const char* sender, const char* content, const char* timestamp, int is_pinned);
 // Account persistence
 int load_accounts(const char* filename);
 int save_account(const char* filename, const char* username, const char* password);

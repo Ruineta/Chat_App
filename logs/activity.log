@@ -1,0 +1,532 @@
+[2025-11-30 18:23:50] User: testuser_1 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:23:51] User: testuser_1 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:23:51] User: testuser_1 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:23:51] User: testuser_2 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:23:52] User: testuser_2 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:23:52] User: testuser_2 | Action: ADD_FRIEND | Details: testuser_1
+[2025-11-30 18:23:52] User: testuser_2 | Action: SEND_MESSAGE | Details: testuser_1
+[2025-11-30 18:23:52] User: testuser_2 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:23:53] User: testuser_3 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:23:53] User: testuser_3 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:23:53] User: testuser_3 | Action: ADD_FRIEND | Details: testuser_2
+[2025-11-30 18:23:54] User: testuser_3 | Action: SEND_MESSAGE | Details: testuser_2
+[2025-11-30 18:23:54] User: testuser_3 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:23:54] User: testuser_4 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:23:55] User: testuser_4 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:23:55] User: testuser_4 | Action: ADD_FRIEND | Details: testuser_3
+[2025-11-30 18:23:55] User: testuser_4 | Action: SEND_MESSAGE | Details: testuser_3
+[2025-11-30 18:23:56] User: testuser_4 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:23:56] User: testuser_5 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:23:56] User: testuser_5 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:23:57] User: testuser_5 | Action: ADD_FRIEND | Details: testuser_4
+[2025-11-30 18:23:57] User: testuser_5 | Action: SEND_MESSAGE | Details: testuser_4
+[2025-11-30 18:23:57] User: testuser_5 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:31:48] User: testuser1 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:31:48] User: testuser2 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:31:49] User: testuser1 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:31:49] User: testuser1 | Action: ADD_FRIEND | Details: testuser2
+[2025-11-30 18:31:49] User: testuser1 | Action: SEND_MESSAGE | Details: testuser2
+[2025-11-30 18:31:50] User: testuser1 | Action: SEND_MESSAGE | Details: testuser2
+[2025-11-30 18:31:50] User: testuser1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:38:04] User: offline_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:38:04] User: offline_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:38:04] User: offline_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:38:05] User: offline_user1 | Action: ADD_FRIEND | Details: offline_user2
+[2025-11-30 18:38:05] User: offline_user1 | Action: SEND_MESSAGE | Details: offline_user2
+[2025-11-30 18:38:05] User: offline_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:38:06] User: offline_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:38:16] User: offline_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:42:36] User: pin_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:42:37] User: pin_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:42:37] User: pin_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:42:38] User: pin_user2 | Action: SEND_MESSAGE | Details: pin_user2
+[2025-11-30 18:42:38] User: pin_user2 | Action: SEND_MESSAGE | Details: pin_user2
+[2025-11-30 18:42:38] User: pin_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:44:27] User: pin_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:44:28] User: pin_user2 | Action: SEND_MESSAGE | Details: pin_user2
+[2025-11-30 18:44:28] User: pin_user2 | Action: SEND_MESSAGE | Details: pin_user2
+[2025-11-30 18:44:28] User: pin_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:45:34] User: search_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:45:34] User: search_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 18:45:35] User: search_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:45:35] User: search_user2 | Action: SEND_MESSAGE | Details: search_user2
+[2025-11-30 18:45:36] User: search_user2 | Action: SEND_MESSAGE | Details: search_user2
+[2025-11-30 18:45:36] User: search_user2 | Action: SEARCH_HISTORY | Details: test
+[2025-11-30 18:45:36] User: search_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:46:41] User: block_userA | Action: REGISTER | Details: New user registered
+[2025-11-30 18:46:41] User: block_userB | Action: REGISTER | Details: New user registered
+[2025-11-30 18:46:42] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 18:46:42] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 18:46:42] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:47:05] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 18:47:05] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 18:47:06] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:47:38] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 18:47:38] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 18:47:38] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:48:21] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 18:48:21] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 18:48:21] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 18:55:16] User: hust123 | Action: LOGIN | Details: User logged in
+[2025-11-30 18:55:48] User: test_userA | Action: REGISTER | Details: New user registered
+[2025-11-30 18:56:20] User: test_userB | Action: REGISTER | Details: New user registered
+[2025-11-30 18:56:31] User: test_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 18:56:50] User: test_userB | Action: LOGIN | Details: User logged in
+[2025-11-30 18:57:07] User: test_userB | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 18:57:44] User: test_userA | Action: ADD_FRIEND | Details: test_userB
+[2025-11-30 18:58:59] User: test_userA | Action: SEND_MESSAGE | Details: test_userB
+[2025-11-30 18:59:10] User: test_userB | Action: LOGIN | Details: User logged in
+[2025-11-30 19:03:18] User: test_userA | Action: BLOCK_USER | Details: test_userB
+[2025-11-30 19:03:50] User: test_userA | Action: UNBLOCK_USER | Details: test_userB
+[2025-11-30 19:04:11] User: test_userB | Action: SEND_MESSAGE | Details: test_userA
+[2025-11-30 19:05:25] User: test_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:05:25] User: test_userB | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:08:14] User: ui_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:08:15] User: ui_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:08:15] User: ui_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:08:15] User: ui_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:08:16] User: ui_user1 | Action: ADD_FRIEND | Details: ui_user2
+[2025-11-30 19:08:16] User: ui_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:08:16] User: ui_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:08:16] User: ui_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:00] User: session_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:01] User: session_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:01] User: session_user1 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-11-30 19:13:01] User: session_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:01] User: session_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:02] User: session_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:02] User: stream_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:03] User: stream_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:03] User: stream_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:03] User: stream_user1 | Action: SEND_MESSAGE | Details: stream_user2
+[2025-11-30 19:13:04] User: stream_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:04] User: format_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:04] User: format_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:05] User: format_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:05] User: format_user1 | Action: SEND_MESSAGE | Details: format_user2
+[2025-11-30 19:13:05] User: format_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:06] User: offline_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:07] User: offline_user1 | Action: SEND_MESSAGE | Details: offline_user2
+[2025-11-30 19:13:07] User: offline_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:08] User: offline_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:11] User: offline_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:12] User: search_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:12] User: search_user1 | Action: SEND_MESSAGE | Details: search_user2
+[2025-11-30 19:13:13] User: search_user1 | Action: SEARCH_HISTORY | Details: keyword
+[2025-11-30 19:13:13] User: search_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:14] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:14] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 19:13:15] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:16] User: friend_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:17] User: friend_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:13:17] User: friend_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:17] User: friend_user1 | Action: ADD_FRIEND | Details: friend_user2
+[2025-11-30 19:13:18] User: friend_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:13:18] User: friend_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:44] User: session_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:44] User: session_user1 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-11-30 19:13:44] User: session_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:44] User: session_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:45] User: session_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:46] User: stream_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:46] User: stream_user1 | Action: SEND_MESSAGE | Details: stream_user2
+[2025-11-30 19:13:47] User: stream_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:48] User: format_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:48] User: format_user1 | Action: SEND_MESSAGE | Details: format_user2
+[2025-11-30 19:13:48] User: format_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:50] User: offline_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:13:50] User: offline_user1 | Action: SEND_MESSAGE | Details: offline_user2
+[2025-11-30 19:13:50] User: offline_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:13:51] User: offline_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:14:04] User: offline_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:14:05] User: search_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:14:05] User: search_user1 | Action: SEND_MESSAGE | Details: search_user2
+[2025-11-30 19:14:05] User: search_user1 | Action: SEARCH_HISTORY | Details: keyword
+[2025-11-30 19:14:06] User: search_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:14:07] User: block_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 19:14:07] User: block_userA | Action: BLOCK_USER | Details: block_userB
+[2025-11-30 19:14:07] User: block_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:14:19] User: friend_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:14:19] User: friend_user1 | Action: ADD_FRIEND | Details: friend_user2
+[2025-11-30 19:14:19] User: friend_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:14:20] User: friend_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:45:16] User: test_userA | Action: LOGIN | Details: User logged in
+[2025-11-30 19:45:31] User: test_userB | Action: LOGIN | Details: User logged in
+[2025-11-30 19:45:42] User: test_userA | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:45:49] User: test_userB | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:46:14] User: test_userA | Action: ADD_FRIEND | Details: test_userB
+[2025-11-30 19:46:18] User: test_userA | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:46:31] User: test_userA | Action: ADD_FRIEND | Details: hust123
+[2025-11-30 19:46:36] User: test_userA | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:46:41] User: test_userB | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 19:47:59] User: test_userA | Action: SEND_MESSAGE | Details: test_userB
+[2025-11-30 19:55:53] User: test_userB | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:53] User: test_userA | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:57] User: thread_recipient | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user4 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user3 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user0 | Action: REGISTER | Details: New user registered
+[2025-11-30 19:55:58] User: thread_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:55:58] User: thread_user4 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:55:58] User: thread_user2 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:55:58] User: thread_user3 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:55:58] User: thread_user0 | Action: LOGIN | Details: User logged in
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:58] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user4 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user0 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user2 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user1 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user3 | Action: SEND_MESSAGE | Details: thread_recipient
+[2025-11-30 19:55:59] User: thread_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:59] User: thread_user3 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:59] User: thread_user2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:59] User: thread_user0 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 19:55:59] User: thread_user4 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 22:41:43] User: req_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 22:41:43] User: req_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 22:41:44] User: req_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 22:41:44] User: req_user1 | Action: SEND_FRIEND_REQUEST | Details: req_user2
+[2025-11-30 22:41:44] User: req_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 22:41:47] User: seen_user1 | Action: REGISTER | Details: New user registered
+[2025-11-30 22:41:47] User: seen_user2 | Action: REGISTER | Details: New user registered
+[2025-11-30 22:41:47] User: seen_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 22:41:48] User: seen_user1 | Action: ADD_FRIEND | Details: seen_user2
+[2025-11-30 22:41:48] User: seen_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 22:41:50] User: seen_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 22:41:50] User: seen_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 22:42:24] User: req_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 22:42:24] User: req_user1 | Action: SEND_FRIEND_REQUEST | Details: req_user2
+[2025-11-30 22:42:24] User: req_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 22:42:54] User: seen_user1 | Action: LOGIN | Details: User logged in
+[2025-11-30 22:42:55] User: seen_user1 | Action: ADD_FRIEND | Details: seen_user2
+[2025-11-30 22:42:55] User: seen_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 22:42:57] User: seen_user1 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-11-30 22:42:57] User: seen_user1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 22:59:21] User: giang2b | Action: REGISTER | Details: New user registered
+[2025-11-30 22:59:37] User: HaChu | Action: REGISTER | Details: New user registered
+[2025-11-30 22:59:45] User: HaChu | Action: LOGIN | Details: User logged in
+[2025-11-30 22:59:55] User: giang2b | Action: LOGIN | Details: User logged in
+[2025-11-30 23:01:49] User: HaChu | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:01:49] User: giang2b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:06:01] User: giang2b | Action: LOGIN | Details: User logged in
+[2025-11-30 23:06:12] User: HaChu | Action: LOGIN | Details: User logged in
+[2025-11-30 23:06:29] User: giang2b | Action: SEND_FRIEND_REQUEST | Details: HaChu
+[2025-11-30 23:18:04] User: HaChu | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 23:18:44] User: HaChu | Action: LOGIN | Details: User logged in
+[2025-11-30 23:19:03] User: HaChu | Action: ACCEPT_FRIEND_REQUEST | Details: giang2b
+[2025-11-30 23:23:44] User: giang2b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:23:44] User: HaChu | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:27:54] User: giang2b | Action: LOGIN | Details: User logged in
+[2025-11-30 23:27:57] User: giang2b | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 23:28:07] User: test1 | Action: REGISTER | Details: New user registered
+[2025-11-30 23:28:17] User: test1 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:28:28] User: test2 | Action: REGISTER | Details: New user registered
+[2025-11-30 23:28:36] User: test1 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-11-30 23:28:36] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:28:36] User: test1 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:29:00] User: test1 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-11-30 23:29:00] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:29:00] User: test1 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:29:20] User: test2 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:29:37] User: test1 | Action: SEND_FRIEND_REQUEST | Details: test2
+[2025-11-30 23:29:47] User: test1 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 23:29:57] User: test3 | Action: REGISTER | Details: New user registered
+[2025-11-30 23:31:22] User: test3 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:31:29] User: test3 | Action: SEND_FRIEND_REQUEST | Details: test2
+[2025-11-30 23:31:32] User: test2 | Action: DISCONNECT | Details: User disconnected
+[2025-11-30 23:32:16] User: test2 | Action: LOGIN | Details: User logged in
+[2025-11-30 23:33:02] User: test2 | Action: ACCEPT_FRIEND_REQUEST | Details: test1
+[2025-11-30 23:33:35] User: test2 | Action: ACCEPT_FRIEND_REQUEST | Details: test3
+[2025-11-30 23:35:44] User: test2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-11-30 23:35:44] User: test3 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 00:51:52] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 00:52:11] User: test2 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-12-01 00:52:11] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 00:52:11] User: test2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 00:52:43] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 00:53:40] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 00:53:54] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 00:54:02] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 00:58:47] User: test2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 00:58:47] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 01:00:33] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 01:00:54] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 01:01:22] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 01:08:47] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 01:08:47] User: test2 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 01:21:13] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 01:23:14] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 01:23:31] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 01:23:37] User: test2 | Action: DISCONNECT | Details: User disconnected
+[2025-12-01 01:40:39] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-01 16:32:56] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:33:06] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:33:24] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 16:33:33] User: test2 | Action: DISCONNECT | Details: User disconnected
+[2025-12-01 16:36:15] User: test1 | Action: DISCONNECT | Details: User disconnected
+[2025-12-01 16:39:06] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:39:11] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:39:31] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 16:56:00] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:56:08] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 16:56:22] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 16:56:44] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 16:57:11] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 16:57:19] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 18:48:56] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 18:49:02] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 18:49:15] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 18:49:25] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 18:49:31] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 18:49:36] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:01:22] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 19:01:32] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 19:01:43] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:02:53] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 19:03:05] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 19:03:12] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:03:18] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:03:22] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:12:25] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-01 19:12:32] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-01 19:12:45] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 19:13:04] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 19:13:14] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 23:21:56] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 23:22:04] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-01 23:22:07] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-01 23:23:05] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 01:31:13] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-02 01:31:20] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-02 01:31:49] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 01:31:59] User: test1 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 01:32:06] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-02 01:32:10] User: test2 | Action: SEND_MESSAGE | Details: test1
+[2025-12-02 02:08:30] User: test_user_a_final | Action: REGISTER | Details: New user registered
+[2025-12-02 02:08:30] User: test_user_b_final | Action: REGISTER | Details: New user registered
+[2025-12-02 02:08:31] User: test_user_a_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:31] User: test_user_b_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:31] User: test_user_a_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:31] User: test_user_b_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:31] User: test_user_a_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:31] User: test_user_b_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:31] User: test_user_a_final | Action: ADD_FRIEND | Details: test_user_b_final
+[2025-12-02 02:08:32] User: test_user_a_final | Action: SEND_MESSAGE | Details: test_user_b_final
+[2025-12-02 02:08:32] User: test_user_a_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:32] User: test_user_b_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:32] User: test_user_a_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:32] User: test_user_b_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:32] User: test_user_a_final | Action: CREATE_GROUP | Details: GROUP_test_user_a_final_1764616112
+[2025-12-02 02:08:32] User: test_user_a_final | Action: ADD_TO_GROUP | Details: test_user_b_final
+[2025-12-02 02:08:33] User: test_user_a_final | Action: GROUP_MESSAGE | Details: GROUP_test_user_a_final_1764616112
+[2025-12-02 02:08:33] User: test_user_a_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:33] User: test_user_b_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:33] User: test_user_a_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:34] User: test_user_a_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:34] User: test_user_a_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:34] User: test_user_b_final | Action: LOGIN | Details: User logged in
+[2025-12-02 02:08:34] User: test_user_a_final | Action: SEND_MESSAGE | Details: test_user_b_final
+[2025-12-02 02:08:35] User: test_user_a_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:08:35] User: test_user_b_final | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:07] User: friend_req_a | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:07] User: friend_req_b | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:08] User: friend_req_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:08] User: friend_req_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:08] User: friend_req_a | Action: SEND_FRIEND_REQUEST | Details: friend_req_b
+[2025-12-02 02:14:08] User: friend_req_b | Action: ACCEPT_FRIEND_REQUEST | Details: friend_req_a
+[2025-12-02 02:14:08] User: friend_req_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:08] User: friend_req_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:08] User: friend_req_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:08] User: block_test_a | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:09] User: block_test_b | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:09] User: block_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:09] User: block_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:09] User: block_test_a | Action: ADD_FRIEND | Details: block_test_b
+[2025-12-02 02:14:09] User: block_test_a | Action: BLOCK_USER | Details: block_test_b
+[2025-12-02 02:14:09] User: block_test_a | Action: UNBLOCK_USER | Details: block_test_b
+[2025-12-02 02:14:10] User: block_test_b | Action: SEND_MESSAGE | Details: block_test_a
+[2025-12-02 02:14:10] User: block_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:10] User: block_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:10] User: group_edge_a | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:10] User: group_edge_b | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:10] User: group_edge_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:10] User: group_edge_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:10] User: group_edge_a | Action: CREATE_GROUP | Details: GROUP_group_edge_a_1764616450
+[2025-12-02 02:14:13] User: group_edge_a | Action: ADD_TO_GROUP | Details: group_edge_b
+[2025-12-02 02:14:13] User: group_edge_b | Action: LEAVE_GROUP | Details: GROUP_group_edge_a_1764616450
+[2025-12-02 02:14:13] User: group_edge_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:13] User: group_edge_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:13] User: hist_test_a | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:13] User: hist_test_b | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:14] User: hist_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:14] User: hist_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:14] User: hist_test_a | Action: ADD_FRIEND | Details: hist_test_b
+[2025-12-02 02:14:14] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:14:14] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:14:15] User: hist_test_a | Action: SEARCH_HISTORY | Details: SEARCH_TEST
+[2025-12-02 02:14:15] User: hist_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:15] User: hist_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:15] User: unfriend_a | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:15] User: unfriend_b | Action: REGISTER | Details: New user registered
+[2025-12-02 02:14:15] User: unfriend_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:16] User: unfriend_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:16] User: unfriend_a | Action: ADD_FRIEND | Details: unfriend_b
+[2025-12-02 02:14:16] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:16] User: unfriend_a | Action: UNFRIEND | Details: unfriend_b
+[2025-12-02 02:14:16] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:17] User: unfriend_b | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:17] User: unfriend_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:17] User: unfriend_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:47] User: friend_req_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:48] User: friend_req_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:50] User: friend_req_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:50] User: friend_req_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:50] User: friend_req_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:51] User: block_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:51] User: block_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:51] User: block_test_a | Action: BLOCK_USER | Details: block_test_b
+[2025-12-02 02:14:51] User: block_test_a | Action: UNBLOCK_USER | Details: block_test_b
+[2025-12-02 02:14:51] User: block_test_b | Action: SEND_MESSAGE | Details: block_test_a
+[2025-12-02 02:14:52] User: block_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:52] User: block_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:52] User: group_edge_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:52] User: group_edge_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:52] User: group_edge_a | Action: CREATE_GROUP | Details: GROUP_group_edge_a_1764616492
+[2025-12-02 02:14:53] User: group_edge_a | Action: ADD_TO_GROUP | Details: group_edge_b
+[2025-12-02 02:14:53] User: group_edge_b | Action: LEAVE_GROUP | Details: GROUP_group_edge_a_1764616492
+[2025-12-02 02:14:53] User: group_edge_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:53] User: group_edge_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:53] User: hist_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:54] User: hist_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:54] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:14:54] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:14:55] User: hist_test_a | Action: SEARCH_HISTORY | Details: SEARCH_TEST
+[2025-12-02 02:14:55] User: hist_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:55] User: hist_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:55] User: unfriend_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:55] User: unfriend_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:14:56] User: unfriend_a | Action: ADD_FRIEND | Details: unfriend_b
+[2025-12-02 02:14:56] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:56] User: unfriend_a | Action: UNFRIEND | Details: unfriend_b
+[2025-12-02 02:14:56] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:57] User: unfriend_b | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:14:57] User: unfriend_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:14:57] User: unfriend_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:26] User: friend_req_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:26] User: friend_req_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:29] User: friend_req_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:15:29] User: friend_req_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:29] User: friend_req_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:29] User: block_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:29] User: block_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:30] User: block_test_a | Action: BLOCK_USER | Details: block_test_b
+[2025-12-02 02:15:30] User: block_test_a | Action: UNBLOCK_USER | Details: block_test_b
+[2025-12-02 02:15:30] User: block_test_b | Action: SEND_MESSAGE | Details: block_test_a
+[2025-12-02 02:15:30] User: block_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:30] User: block_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:31] User: group_edge_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:31] User: group_edge_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:31] User: group_edge_a | Action: CREATE_GROUP | Details: GROUP_group_edge_a_1764616531
+[2025-12-02 02:15:31] User: group_edge_a | Action: ADD_TO_GROUP | Details: group_edge_b
+[2025-12-02 02:15:31] User: group_edge_b | Action: LEAVE_GROUP | Details: GROUP_group_edge_a_1764616531
+[2025-12-02 02:15:32] User: group_edge_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:32] User: group_edge_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:32] User: hist_test_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:32] User: hist_test_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:32] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:15:33] User: hist_test_a | Action: SEND_MESSAGE | Details: hist_test_b
+[2025-12-02 02:15:33] User: hist_test_a | Action: SEARCH_HISTORY | Details: SEARCH_TEST
+[2025-12-02 02:15:34] User: hist_test_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:34] User: hist_test_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:34] User: unfriend_a | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:34] User: unfriend_b | Action: LOGIN | Details: User logged in
+[2025-12-02 02:15:34] User: unfriend_a | Action: ADD_FRIEND | Details: unfriend_b
+[2025-12-02 02:15:34] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:15:35] User: unfriend_a | Action: UNFRIEND | Details: unfriend_b
+[2025-12-02 02:15:35] User: unfriend_a | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:15:35] User: unfriend_b | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 02:15:36] User: unfriend_a | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 02:15:36] User: unfriend_b | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 03:05:17] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:05:27] User: test1 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-12-02 03:05:27] User: test1 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 03:05:27] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:05:38] User: test1 | Action: DISCONNECT | Details: User disconnected
+[2025-12-02 03:05:58] User: test1 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:06:06] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:06:46] User: test1 | Action: DISCONNECT | Details: User disconnected
+[2025-12-02 03:07:13] User: test4 | Action: REGISTER | Details: New user registered
+[2025-12-02 03:07:29] User: test4 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:07:32] User: test4 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:07:38] User: test2 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:07:54] User: test4 | Action: SEND_FRIEND_REQUEST | Details: test2
+[2025-12-02 03:08:08] User: test2 | Action: ACCEPT_FRIEND_REQUEST | Details: test4
+[2025-12-02 03:08:12] User: test4 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:08:15] User: test2 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:09:18] User: test4 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 03:09:56] User: test2 | Action: SEND_MESSAGE | Details: test4
+[2025-12-02 03:10:02] User: test4 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 03:10:08] User: test2 | Action: SEND_MESSAGE | Details: test4
+[2025-12-02 03:10:17] User: test4 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 03:10:23] User: test4 | Action: SEND_MESSAGE | Details: test2
+[2025-12-02 03:10:30] User: test2 | Action: SEND_MESSAGE | Details: test4
+[2025-12-02 03:11:26] User: test4 | Action: SESSION_TERMINATED | Details: Old session closed by new login
+[2025-12-02 03:11:26] User: test4 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:11:26] User: test4 | Action: LOGOUT | Details: User logged out (connection closed)
+[2025-12-02 03:11:37] User: test2 | Action: DISCONNECT | Details: User disconnected
+[2025-12-02 03:11:45] User: test2 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:12:04] User: test4 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:12:07] User: test4 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:12:09] User: test2 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:13:06] User: test4 | Action: DISCONNECT | Details: User disconnected
+[2025-12-02 03:13:16] User: test2 | Action: GET_FRIENDS | Details: Retrieved friend list
+[2025-12-02 03:13:36] User: test5 | Action: REGISTER | Details: New user registered
+[2025-12-02 03:13:50] User: test5 | Action: LOGIN | Details: User logged in
+[2025-12-02 03:15:50] User: test5 | Action: SEND_FRIEND_REQUEST | Details: test2
+[2025-12-02 03:16:32] User: test2 | Action: REJECT_FRIEND_REQUEST | Details: test5

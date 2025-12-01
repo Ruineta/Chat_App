@@ -1,0 +1,116 @@
+2025-11-30 18:44:28|pin_user2|pin_user2|0|This is a pinned message|1|1
+2025-11-30 18:44:28|pin_user2|pin_user2|0|This is a normal message|1|0
+2025-11-30 18:45:35|search_user2|search_user2|0|Hello world test message|1|0
+2025-11-30 18:45:36|search_user2|search_user2|0|Another test message with keyword|1|1
+2025-11-30 18:58:59|test_userA|test_userB|0|Xin Chao day la tin nhan test Offline|1|0
+2025-11-30 19:04:11|test_userB|test_userA|0|Xin loi duoc chua v |1|0
+2025-11-30 19:13:03|stream_user1|stream_user2|0|Test message for stream handling|0|0
+2025-11-30 19:13:05|format_user1|format_user2|0|Pinned message test|0|1
+2025-11-30 19:13:07|offline_user1|offline_user2|0|Offline message test|1|0
+2025-11-30 19:13:12|search_user1|search_user2|0|Test keyword search|0|0
+2025-11-30 19:13:46|stream_user1|stream_user2|0|Test message for stream handling|0|0
+2025-11-30 19:13:48|format_user1|format_user2|0|Pinned message test|0|1
+2025-11-30 19:13:50|offline_user1|offline_user2|0|Offline message test|1|0
+2025-11-30 19:14:05|search_user1|search_user2|0|Test keyword search|0|0
+2025-11-30 19:47:59|test_userA|test_userB|0|Test Tin nhan Online nay|1|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 0 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 0 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 0 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 0 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 0 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 1 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 1 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 1 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 1 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 1 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 2 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 2 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 2 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 2 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 2 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 3 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 3 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 3 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 3 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 3 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 4 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 4 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 4 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 4 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 4 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 5 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 5 from thread_user1|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 5 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 5 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 5 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user4|thread_recipient|0|Thread safety test message 6 from thread_user4|0|0
+2025-11-30 19:55:58|thread_user0|thread_recipient|0|Thread safety test message 6 from thread_user0|0|0
+2025-11-30 19:55:58|thread_user2|thread_recipient|0|Thread safety test message 6 from thread_user2|0|0
+2025-11-30 19:55:58|thread_user3|thread_recipient|0|Thread safety test message 6 from thread_user3|0|0
+2025-11-30 19:55:58|thread_user1|thread_recipient|0|Thread safety test message 6 from thread_user1|0|0
+2025-11-30 19:55:59|thread_user4|thread_recipient|0|Thread safety test message 7 from thread_user4|0|0
+2025-11-30 19:55:59|thread_user2|thread_recipient|0|Thread safety test message 7 from thread_user2|0|0
+2025-11-30 19:55:59|thread_user0|thread_recipient|0|Thread safety test message 7 from thread_user0|0|0
+2025-11-30 19:55:59|thread_user1|thread_recipient|0|Thread safety test message 7 from thread_user1|0|0
+2025-11-30 19:55:59|thread_user3|thread_recipient|0|Thread safety test message 7 from thread_user3|0|0
+2025-11-30 19:55:59|thread_user1|thread_recipient|0|Thread safety test message 8 from thread_user1|0|0
+2025-11-30 19:55:59|thread_user2|thread_recipient|0|Thread safety test message 8 from thread_user2|0|0
+2025-11-30 19:55:59|thread_user4|thread_recipient|0|Thread safety test message 8 from thread_user4|0|0
+2025-11-30 19:55:59|thread_user0|thread_recipient|0|Thread safety test message 8 from thread_user0|0|0
+2025-11-30 19:55:59|thread_user3|thread_recipient|0|Thread safety test message 8 from thread_user3|0|0
+2025-11-30 19:55:59|thread_user4|thread_recipient|0|Thread safety test message 9 from thread_user4|0|0
+2025-11-30 19:55:59|thread_user0|thread_recipient|0|Thread safety test message 9 from thread_user0|0|0
+2025-11-30 19:55:59|thread_user2|thread_recipient|0|Thread safety test message 9 from thread_user2|0|0
+2025-11-30 19:55:59|thread_user1|thread_recipient|0|Thread safety test message 9 from thread_user1|0|0
+2025-11-30 19:55:59|thread_user3|thread_recipient|0|Thread safety test message 9 from thread_user3|0|0
+2025-12-01 00:53:40|test2|test1|0|Dang test tin nhan offline nay|1|0
+2025-12-01 00:53:54|test2|test1|0|ban da nhan duoc chua|1|0
+2025-12-01 01:01:22|test2|test1|0|Test tin nhan ne|1|0
+2025-12-01 01:23:31|test1|test2|0|Xin chao ban khe khong|1|0
+2025-12-01 16:33:24|test1|test2|0|Xin chao ban tui|1|0
+2025-12-01 16:39:31|test1|test2|0|Ban co dang khoe khong|1|0
+2025-12-01 16:56:22|test1|test2|0|Xin chao ban co khoe khong|1|0
+2025-12-01 16:56:44|test2|test1|0|Toi van on con ban|1|0
+2025-12-01 16:57:11|test1|test2|0|Ban lam xong bai tap chua the|1|0
+2025-12-01 16:57:19|test2|test1|0|Moi gan xong thoi ban oi|1|0
+2025-12-01 18:49:15|test1|test2|0|Xin chao ban toi|1|0
+2025-12-01 18:49:25|test2|test1|0|alo|1|0
+2025-12-01 18:49:31|test2|test1|0|sao the|1|0
+2025-12-01 18:49:36|test1|test2|0|khong sao|1|0
+2025-12-01 19:01:43|test1|test2|0|Xin chao ban toi|1|0
+2025-12-01 19:02:53|test2|test1|0|Toi van chua thay tin nhan cua ban|1|0
+2025-12-01 19:03:05|test2|test1|0|Ban da nhan gi chua the|1|0
+2025-12-01 19:03:12|test1|test2|0|ro rang toi nhan roi ma|1|0
+2025-12-01 19:03:18|test1|test2|0|gio thi ban da thay chua|1|0
+2025-12-01 19:03:22|test1|test2|0|hay la van chua thay|1|0
+2025-12-01 19:12:45|test1|test2|0|Xin Chao ban con nho toi khong|1|0
+2025-12-01 19:13:04|test2|test1|0|con nho chu sao khong|1|0
+2025-12-01 19:13:14|test2|test1|0|minh hoc cung voi nhau hoi be ma |1|0
+2025-12-01 23:21:56|test1|test2|0|Van on chu|1|0
+2025-12-01 23:22:04|test1|test2|0|On khong|1|0
+2025-12-01 23:22:07|test2|test1|0|khong on |1|0
+2025-12-01 23:23:05|test1|test2|0|Ok |1|0
+2025-12-02 01:31:49|test1|test2|0|Xin chào|1|0
+2025-12-02 01:31:59|test1|test2|0|Có đang rảnh không thế bạn iu ơi|1|0
+2025-12-02 01:32:06|test2|test1|0|Rảnh|1|0
+2025-12-02 01:32:10|test2|test1|0|Sao thế|1|0
+2025-12-02 02:08:32|test_user_a_final|test_user_b_final|0|Hello B from A|1|0
+2025-12-02 02:08:33|test_user_a_final|test_user_a_final|2|Group message test|1|0
+2025-12-02 02:08:33|test_user_a_final|test_user_b_final|2|Group message test|1|0
+2025-12-02 02:08:34|test_user_a_final|test_user_b_final|0|PIN_TEST_MESSAGE_XYZ123|1|0
+2025-12-02 02:14:10|block_test_b|block_test_a|0|Unblocked message|1|0
+2025-12-02 02:14:14|hist_test_a|hist_test_b|0|Message with keyword SEARCH_TEST|1|0
+2025-12-02 02:14:14|hist_test_a|hist_test_b|0|Another message|1|0
+2025-12-02 02:14:51|block_test_b|block_test_a|0|Unblocked message|1|0
+2025-12-02 02:14:54|hist_test_a|hist_test_b|0|Message with keyword SEARCH_TEST|1|0
+2025-12-02 02:14:54|hist_test_a|hist_test_b|0|Another message|1|0
+2025-12-02 02:15:30|block_test_b|block_test_a|0|Unblocked message|1|0
+2025-12-02 02:15:32|hist_test_a|hist_test_b|0|Message with keyword SEARCH_TEST|1|0
+2025-12-02 02:15:33|hist_test_a|hist_test_b|0|Another message|1|0
+2025-12-02 03:09:18|test4|test2|0|Day la tin nhan test|1|0
+2025-12-02 03:09:56|test2|test4|0|Thong qua chua vay|1|0
+2025-12-02 03:10:02|test4|test2|0|toi cung khong biet nua|1|0
+2025-12-02 03:10:08|test2|test4|0|ban thu xem lai xem|1|0
+2025-12-02 03:10:17|test4|test2|0|gio nen lam gi nhi|1|0
+2025-12-02 03:10:23|test4|test2|0|kho qua khong biet lam troi oi|1|0
+2025-12-02 03:10:30|test2|test4|0|chac la khong sao dau|1|0

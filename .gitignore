@@ -1,58 +1,26 @@
-# Prerequisites
-*.d
-
-# Object files
+# Build artifacts
+build/
 *.o
-*.ko
-*.obj
-*.elf
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Precompiled Headers
-*.gch
-*.pch
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Temporary files
+*.tmp
+*.bak
+*.cache
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# Backup directories (optional - can remove if want to include)
+backup_v1/
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# debug information files
-*.dwo
-*.log
-*.code-workspace
-messages.txt
+# Note: data/ and logs/ are INCLUDED for academic project
+# All documentation is INCLUDED

@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "common.h"  // Includes socket libraries (winsock2.h for Windows, sys/socket.h for Linux)
+#include "common.h"
 
 // Function declarations
 int init_client(socket_t* client_socket, const char* server_ip);

@@ -64,6 +64,11 @@ typedef enum {
     CMD_LOGOUT = 2,
     CMD_GET_FRIENDS = 3,
     CMD_ADD_FRIEND = 18,
+    CMD_SEND_FRIEND_REQUEST = 19,
+    CMD_ACCEPT_FRIEND_REQUEST = 20,
+    CMD_REJECT_FRIEND_REQUEST = 22,
+    CMD_GET_FRIEND_REQUESTS = 21,
+    CMD_UNFRIEND = 24,
     CMD_SEND_MESSAGE = 4,
     CMD_RECEIVE_MESSAGE = 5,
     CMD_DISCONNECT = 6,
@@ -78,6 +83,7 @@ typedef enum {
     CMD_UNBLOCK_USER = 15,
     CMD_PIN_MESSAGE = 16,
     CMD_GET_PINNED = 17,
+    CMD_GET_CHAT_HISTORY = 23,
     CMD_ERROR = 99,
     CMD_SUCCESS = 100
 } CommandType;
@@ -102,6 +108,9 @@ typedef struct {
     int blocked_count;
     char friends[MAX_FRIENDS][MAX_USERNAME];
     int friend_count;
+    char pending_requests[MAX_FRIENDS][MAX_USERNAME];  // Friend requests received
+    int pending_request_count;
+    time_t last_seen;  // Last logout time
 } User;
 
 // Group structure
@@ -130,11 +139,18 @@ typedef struct {
 } ProtocolMessage;
 
 // Function declarations
+void init_log_mutex(void);
+void init_messages_mutex(void);
+void lock_messages_mutex(void);
+void unlock_messages_mutex(void);
 void log_activity(const char* username, const char* action, const char* details);
 char* serialize_protocol_message(ProtocolMessage* msg, int* len);
 ProtocolMessage* deserialize_protocol_message(char* buffer, int len);
 char* get_timestamp_string(time_t t);
 void trim_newline(char* str);
+void clear_stdin_buffer(void);
+int send_all(socket_t sock, const char* buf, size_t len);
+int recv_all(socket_t sock, char* buf, size_t len);
 
 #endif // COMMON_H
 

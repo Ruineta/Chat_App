@@ -1,140 +1,140 @@
-# Chat Application
+# Chat Application - Network Programming Project
 
-A simple TCP-based chat application with multithreading support, implementing all required features from the project rubric.
+A TCP-based chat application with multithreading support, implementing real-time messaging, group chats, and advanced features.
 
 ## Features
 
-### Core Features (14 points total)
+### Core Features
+- **User Management**: Registration, login, friend management
+- **Real-time 1-1 Chat**: Instant messaging between users
+- **Group Chat**: Create groups, add members, group messaging
+- **Message Persistence**: Messages saved to file, history loading
+- **Offline Messaging**: Messages delivered when user comes online
+- **Activity Logging**: All actions logged to file
+- **Search History**: Search messages by keyword
+- **Block/Unblock Users**: User blocking functionality
+- **Pin Messages**: Pin important messages in groups
+- **UTF-8 Support**: Vietnamese characters and emoji support
 
-1. **Get Friend List and Status** (1 point)
-   - Display list of users and their online/offline status
+## Project Structure
 
-2. **Send and Receive Messages (1-1)** (1 point)
-   - Real-time 1-1 chat between two users
+```
+Chat_App/
+├── src/              # Source code files
+│   ├── server.c      # Server implementation
+│   ├── client.c      # Client implementation
+│   ├── common.c      # Shared utilities
+│   └── ui.c          # User interface
+├── include/          # Header files
+│   ├── server.h
+│   ├── client.h
+│   ├── common.h
+│   └── ui.h
+├── data/             # Data files (created at runtime)
+│   ├── account.txt
+│   └── messages.txt
+├── logs/             # Log files (created at runtime)
+│   └── activity.log
+├── build/            # Build artifacts (created at compile time)
+├── tests/            # Test files
+├── docs/             # Documentation
+├── Makefile          # Build configuration
+└── README.md         # This file
+```
 
-3. **Disconnect** (1 point)
-   - When a user leaves a conversation, the system notifies the other party
+## Requirements
 
-4. **Create Group Chat** (1 point)
-   - Allows users to create new group chats
-
-5. **Add Users to Group Chat** (1 point)
-   - Group creator can invite more members
-
-6. **Remove Users from Group Chat** (1 point)
-   - Group administrators can remove members from the group
-
-7. **Leave Group Chat** (1 point)
-   - Users can leave groups they are participating in
-
-8. **Send and Receive Messages in Group Chat** (1 point)
-   - Supports sending messages to all members in the group
-
-9. **Send Offline Messages** (1 point)
-   - Saves messages when the recipient is not yet online
-
-10. **Log Activity** (1 point)
-    - Records all user activity for review
-
-11. **Search Chat History** (1 point)
-    - Allows searching old messages by keyword
-
-12. **Send Emoji** (1 point)
-    - Supports emojis in messages
-
-13. **Set Group Nickname** (0.5 points)
-    - Rename group chat
-
-14. **Block User** (1 point)
-    - Block users
-
-15. **Pin Message in Conversation** (0.5 points)
-    - Pin messages in chat segment
-
-## Architecture
-
-- **Server**: Multithreaded TCP server handling multiple client connections
-- **Client**: TCP client with separate receive thread for real-time messaging
-- **Protocol**: Custom text-based protocol for communication
-- **Storage**: File-based storage for messages and activity logs
+- **OS**: Windows 10+ or Linux
+- **Compiler**: GCC (MinGW on Windows)
+- **Libraries**: 
+  - Windows: `ws2_32` (Winsock)
+  - Linux: `pthread`
 
 ## Building
 
-### Windows (MinGW/MSVC)
+### Using Makefile
 
 ```bash
-# Using MinGW
+# Compile project
 make
 
-# Or compile manually
-gcc -Wall -Wextra -std=c11 -o server.exe server.c common.c -lws2_32
-gcc -Wall -Wextra -std=c11 -o client.exe client.c common.c -lws2_32
+# Clean build files
+make clean
 ```
 
-### Linux
+### Manual Compilation
 
+**Windows:**
 ```bash
-make
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/common.c -o build/common.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/server.c -o build/server.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/client.c -o build/client.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/ui.c -o build/ui.o
+gcc -Wall -Wextra -std=c11 -Iinclude -o build/server.exe build/server.o build/common.o -lws2_32
+gcc -Wall -Wextra -std=c11 -Iinclude -o build/client.exe build/client.o build/common.o build/ui.o -lws2_32
+```
 
-# Or compile manually
-gcc -Wall -Wextra -std=c11 -o server server.c common.c -pthread
-gcc -Wall -Wextra -std=c11 -o client client.c common.c -pthread
+**Linux:**
+```bash
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/common.c -o build/common.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/server.c -o build/server.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/client.c -o build/client.o
+gcc -Wall -Wextra -std=c11 -Iinclude -c src/ui.c -o build/ui.o
+gcc -Wall -Wextra -std=c11 -Iinclude -o build/server build/server.o build/common.o -pthread
+gcc -Wall -Wextra -std=c11 -Iinclude -o build/client build/client.o build/common.o build/ui.o -pthread
 ```
 
 ## Running
 
-### Quick Start
+### Start Server
 
-1. **Build the project:**
+```bash
+cd build
+./server.exe    # Windows
+./server         # Linux
+```
+
+### Start Client
+
+```bash
+cd build
+./client.exe     # Windows
+./client         # Linux
+```
+
+## Quick Start
+
+1. **Compile the project:**
    ```bash
    make
    ```
 
-2. **Start the server** (in one terminal):
+2. **Start server** (Terminal 1):
    ```bash
-   # Windows
-   server.exe
-   
-   # Linux
-   ./server
+   cd build
+   ./server.exe
    ```
-   You should see: `Server started on port 8080`
 
-3. **Start a client** (in another terminal):
+3. **Start client** (Terminal 2):
    ```bash
-   # Windows
-   client.exe
-   
-   # Linux
-   ./client
+   cd build
+   ./client.exe
    ```
-   To connect to a remote server: `client.exe 192.168.1.100`
 
-4. **Use the menu** to register, login, and chat!
+4. **Register and login:**
+   - Choose option `1` to register
+   - Choose option `2` to login
 
-**See `QUICKSTART.md` for detailed step-by-step instructions and examples.**
+5. **Start chatting:**
+   - Add friend: option `4`
+   - Chat 1-1: option `11`
+   - Create group: option `7`
 
-## Usage
+## Configuration
 
-1. **Register**: Create a new account with username and password
-2. **Login**: Login with your credentials
-3. **Get Friends**: View your friend list and their online status
-4. **Send Message**: Send 1-1 messages to other users
-5. **Create Group**: Create a new group chat
-6. **Group Operations**: Add/remove members, send group messages
-7. **Search**: Search through chat history
-8. **Block/Unblock**: Manage blocked users
-9. **Pin Messages**: Pin important messages in groups
-
-## Files
-
-- `server.c` / `server.h`: Server implementation
-- `client.c` / `client.h`: Client implementation
-- `common.c` / `common.h`: Shared utilities and data structures
-- `Makefile`: Build configuration
-- `activity.log`: Activity log file (created at runtime)
-- `messages.txt`: Message storage file (created at runtime)
- - `account.txt`: Simple username/password persistence (one account per line: `username password`). The server loads this file at startup and appends new accounts on successful registration.
+- **Port**: Default port is `8080` (defined in `include/common.h`)
+- **Data Directory**: `data/` (relative to executable)
+- **Log Directory**: `logs/` (relative to executable)
 
 ## Protocol
 
@@ -145,8 +145,29 @@ CMD:<command_type>|SENDER:<username>|RECIPIENT:<recipient>|CONTENT:<content>|EXT
 
 ## Notes
 
-- The server supports multiple concurrent clients using multithreading
-- Messages are stored in `messages.txt` for persistence
-- Activity logs are written to `activity.log`
-- Offline messages are stored and can be retrieved when users come online
+- Server supports multiple concurrent clients using multithreading
+- Messages are stored in `data/messages.txt` for persistence
+- Activity logs are written to `logs/activity.log`
+- Offline messages are stored and delivered when users come online
 - Group administrators can manage group members and settings
+
+## Development
+
+### Code Structure
+- **Server**: Handles client connections, message routing, persistence
+- **Client**: User interface, input handling, server communication
+- **Common**: Shared utilities, protocol serialization, logging
+- **UI**: Console UI framework with chat bubbles, colors, UTF-8 support
+
+### Thread Safety
+- Server uses mutexes for shared state (Windows: CRITICAL_SECTION, Linux: pthread_mutex)
+- File I/O operations are protected by mutexes
+- Activity logging is thread-safe
+
+## License
+
+This project is part of a Network Programming course assignment.
+
+## Contributors
+
+- Project team members
