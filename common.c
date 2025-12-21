@@ -18,8 +18,9 @@ char* serialize_protocol_message(ProtocolMessage* msg, int* len) {
     char* buffer = (char*)malloc(BUFFER_SIZE);
     if (!buffer) return NULL;
     
+    // Append \n at the end for stream delimiter
     snprintf(buffer, BUFFER_SIZE, 
-             "CMD:%d|SENDER:%s|RECIPIENT:%s|CONTENT:%s|EXTRA:%s|TYPE:%d|PINNED:%d|",
+             "CMD:%d|SENDER:%s|RECIPIENT:%s|CONTENT:%s|EXTRA:%s|TYPE:%d|PINNED:%d|\n",
              msg->cmd, msg->sender, msg->recipient, msg->content, 
              msg->extra_data, msg->msg_type, msg->is_pinned ? 1 : 0);
     
@@ -35,6 +36,12 @@ ProtocolMessage* deserialize_protocol_message(char* buffer, int len) {
     
     memset(msg, 0, sizeof(ProtocolMessage));
     
+    // Trim newline at the end if present (from recv_line)
+    int str_len = strlen(buffer);
+    if (str_len > 0 && buffer[str_len - 1] == '\n') {
+        buffer[str_len - 1] = '\0';
+    }
+
     // Simple parsing
     char* token = strtok(buffer, "|");
     while (token) {
@@ -70,8 +77,42 @@ char* get_timestamp_string(time_t t) {
 // Remove newline from string
 void trim_newline(char* str) {
     int len = strlen(str);
-    if (len > 0 && str[len - 1] == '\n') {
+    while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
         str[len - 1] = '\0';
+        len--;
     }
+}
+
+// Ensure all data is sent
+int send_all(socket_t socket, const char* data, int len) {
+    int total_sent = 0;
+    while (total_sent < len) {
+        int sent = send(socket, data + total_sent, len - total_sent, 0);
+        if (sent == SOCKET_ERROR) {
+            return -1;
+        }
+        total_sent += sent;
+    }
+    return total_sent;
+}
+
+// Read until newline or buffer full (blocking)
+// Returns bytes read or -1 on error/close
+int recv_line(socket_t socket, char* buffer, int size) {
+    int total_read = 0;
+    char c;
+    while (total_read < size - 1) {
+        int received = recv(socket, &c, 1, 0);
+        if (received <= 0) {
+            return -1; // Error or closed
+        }
+        
+        buffer[total_read++] = c;
+        if (c == '\n') {
+            break;
+        }
+    }
+    buffer[total_read] = '\0';
+    return total_read;
 }
 

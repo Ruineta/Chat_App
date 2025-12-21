@@ -41,7 +41,9 @@ int init_client(socket_t* client_socket, const char* server_ip) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
+    // Use inet_addr for better compatibility on MinGW/Windows
+    unsigned long addr = inet_addr(server_ip);
+    if (addr == INADDR_NONE) {
         printf("Invalid address: %s\n", server_ip);
         close_socket(*client_socket);
         #ifdef _WIN32
@@ -49,6 +51,7 @@ int init_client(socket_t* client_socket, const char* server_ip) {
         #endif
         return -1;
     }
+    server_addr.sin_addr.s_addr = addr;
 
     if (connect(*client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
         #ifdef _WIN32
@@ -73,8 +76,7 @@ void send_command(socket_t socket, ProtocolMessage* msg) {
     int len;
     char* buffer = serialize_protocol_message(msg, &len);
     if (buffer) {
-        int sent = send(socket, buffer, len, 0);
-        if (sent == SOCKET_ERROR) {
+        if (send_all(socket, buffer, len) < 0) {
             #ifdef _WIN32
             printf("Send failed: %d\n", WSAGetLastError());
             #else
@@ -91,7 +93,8 @@ void receive_response(socket_t socket) {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     
-    int bytes_received = recv(socket, buffer, BUFFER_SIZE - 1, 0);
+    // Use recv_line to ensure we get a full message
+    int bytes_received = recv_line(socket, buffer, BUFFER_SIZE);
     if (bytes_received <= 0) {
         is_connected = false;
         return;
@@ -103,7 +106,9 @@ void receive_response(socket_t socket) {
     
     switch (msg->cmd) {
         case CMD_RECEIVE_MESSAGE:
-            printf("\n[Message from %s]: %s\n", msg->sender, msg->content);
+            printf("\n--------------------------------------------------\n");
+            printf("[Message from %s]: %s\n", msg->sender, msg->content);
+            printf("--------------------------------------------------\n");
             printf("> ");
             fflush(stdout);
             break;
@@ -135,6 +140,9 @@ void receive_response(socket_t socket) {
         case CMD_GET_PINNED:
             printf("%s\n", msg->content);
             break;
+        case CMD_GET_REQUESTS:
+            printf("%s\n", msg->content);
+            break;
         default:
             printf("Response: %s\n", msg->content);
             break;
@@ -163,25 +171,29 @@ void print_menu() {
         return;
     }
 
-    // Logged-in menu: replace Register with Logout, keep other features
-    printf("1. Logout\n");
-    printf("2. Get Friends List\n");
-    printf("3. Add Friend\n");
-    printf("4. Send Message (1-1)\n");
-    printf("5. Create Group\n");
-    printf("6. Add User to Group\n");
-    printf("7. Remove User from Group\n");
-    printf("8. Leave Group\n");
-    printf("9. Send Group Message\n");
-    printf("10. Search Chat History\n");
-    printf("11. Set Group Name\n");
-    printf("12. Block User\n");
-    printf("13. Unblock User\n");
-    printf("14. Pin Message\n");
-    printf("15. Get Pinned Messages\n");
-    printf("16. Disconnect\n");
-    printf("0. Exit\n");
-    printf("Choice: ");
+        // Logged-in menu
+        printf("\n==================================================\n");
+        printf("               CHAT APPLICATION                   \n");
+        printf("==================================================\n");
+        printf("   [FRIENDS]                        [GROUPS]      \n");
+        printf("2. Get Friends List          8. Create Group      \n");
+        printf("3. Send Friend Request       9. Add to Group      \n");
+        printf("4. View Friend Requests     10. Remove fro Group  \n");
+        printf("5. Accept/Reject Friend     11. Leave Group       \n");
+        printf("6. Remove Friend            12. Send Group Msg    \n");
+        printf("                            14. Set Group Name    \n");
+        printf("\n   [MESSAGING]                      [TOOLS]       \n");
+        printf("7. Send Message (1-1)       13. Search History    \n");
+        printf("                            15. Block User        \n");
+        printf("                            16. Unblock User      \n");
+        printf("                            17. Pin Message       \n");
+        printf("                            18. Get Pinned        \n");
+        printf("                            19. Check Status      \n");
+        printf("                            20. Disconnect        \n");
+        printf("--------------------------------------------------\n");
+        printf("1. Logout                   0. Exit               \n");
+        printf("==================================================\n");
+        printf("Choice: ");
 }
 
 // Handle user input
@@ -286,15 +298,43 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 3: {  // Add Friend
-                    printf("Enter username to add as friend: ");
+                case 3: {  // Send Request
+                    printf("Enter username to request: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
-                    msg.cmd = CMD_ADD_FRIEND;
+                    msg.cmd = CMD_FRIEND_REQUEST;
                     send_command(socket, &msg);
                     break;
                 }
-                case 4: {  // Send Message
+                case 4: {  // View Requests
+                    msg.cmd = CMD_GET_REQUESTS;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 5: { // Accept/Reject
+                    printf("1. Accept\n2. Reject\nChoice: ");
+                    char sub[10]; fgets(sub, sizeof(sub), stdin);
+                    int subchoice = atoi(sub);
+                    
+                    printf("Enter username to process: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    
+                    if (subchoice == 1) msg.cmd = CMD_FRIEND_ACCEPT;
+                    else msg.cmd = CMD_FRIEND_REJECT;
+                    
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 6: { // Remove Friend
+                     printf("Enter username to remove: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_REMOVE_FRIEND;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 7: {  // Send Message
                     printf("Enter recipient username: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -309,7 +349,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 5: {  // Create Group
+                case 8: {  // Create Group
                     printf("Enter group name: ");
                     fgets(msg.content, sizeof(msg.content), stdin);
                     trim_newline(msg.content);
@@ -317,7 +357,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 6: {  // Add to Group
+                case 9: {  // Add to Group
                     printf("Enter group ID: ");
                     fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
                     trim_newline(msg.extra_data);
@@ -328,7 +368,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 7: {  // Remove from Group
+                case 10: {  // Remove from Group
                     printf("Enter group ID: ");
                     fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
                     trim_newline(msg.extra_data);
@@ -339,7 +379,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 8: {  // Leave Group
+                case 11: {  // Leave Group
                     printf("Enter group ID: ");
                     fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
                     trim_newline(msg.extra_data);
@@ -347,7 +387,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 9: {  // Group Message
+                case 12: {  // Group Message
                     printf("Enter group ID: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -362,7 +402,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 10: {  // Search History
+                case 13: {  // Search History
                     printf("Enter search keyword: ");
                     fgets(msg.content, sizeof(msg.content), stdin);
                     trim_newline(msg.content);
@@ -373,7 +413,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 11: {  // Set Group Name
+                case 14: {  // Set Group Name
                     printf("Enter group ID: ");
                     fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
                     trim_newline(msg.extra_data);
@@ -384,7 +424,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 12: {  // Block User
+                case 15: {  // Block User
                     printf("Enter username to block: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -392,7 +432,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 13: {  // Unblock User
+                case 16: {  // Unblock User
                     printf("Enter username to unblock: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -400,7 +440,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 14: {  // Pin Message
+                case 17: {  // Pin Message
                     printf("Enter group ID or recipient: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -411,7 +451,7 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 15: {  // Get Pinned
+                case 18: {  // Get Pinned
                     printf("Enter group ID or recipient: ");
                     fgets(msg.recipient, sizeof(msg.recipient), stdin);
                     trim_newline(msg.recipient);
@@ -419,7 +459,15 @@ void handle_user_input(socket_t socket, const char* username) {
                     send_command(socket, &msg);
                     break;
                 }
-                case 16: {  // Disconnect
+                case 19: { // Check Status
+                    printf("Enter username to check: ");
+                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
+                    trim_newline(msg.recipient);
+                    msg.cmd = CMD_CHECK_STATUS;
+                    send_command(socket, &msg);
+                    break;
+                }
+                case 20: {  // Disconnect
                     msg.cmd = CMD_DISCONNECT;
                     send_command(socket, &msg);
                     is_connected = false;

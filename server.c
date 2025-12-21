@@ -61,6 +61,86 @@ int save_account(const char *filename, const char *username, const char *passwor
     fclose(file);
     return 0;
 }
+
+// Save all friends and requests to friends.txt
+// Format: username|friend1,friend2,...|req1,req2,...
+void save_friends_state(ServerState* state) {
+    FILE* file = fopen("friends.txt", "w");
+    if (!file) return;
+
+    for (int i = 0; i < state->user_count; i++) {
+        User* u = &state->users[i];
+        fprintf(file, "%s|", u->username);
+        
+        // Write friends
+        for (int j = 0; j < u->friend_count; j++) {
+            fprintf(file, "%s%s", u->friends[j], (j < u->friend_count - 1) ? "," : "");
+        }
+        fprintf(file, "|");
+        
+        // Write requests
+        for (int j = 0; j < u->request_count; j++) {
+            fprintf(file, "%s%s", u->friend_requests[j], (j < u->request_count - 1) ? "," : "");
+        }
+        fprintf(file, "\n");
+    }
+    fclose(file);
+}
+
+// Load friends state
+void load_friends_state(ServerState* state) {
+    FILE* file = fopen("friends.txt", "r");
+    if (!file) return;
+
+    char line[BUFFER_SIZE];
+    // Re-implementation for robustness:
+    // rewind(file); // No need to rewind if we start valid here
+    while (fgets(line, sizeof(line), file)) {
+        trim_newline(line);
+        char* p = line;
+        
+        // Extract username
+        char* pipe1 = strchr(p, '|');
+        if (!pipe1) continue;
+        *pipe1 = '\0';
+        char* username = p;
+        p = pipe1 + 1;
+        
+        User* u = find_user(state, username);
+        if (!u) continue;
+
+        // Extract friends
+        char* pipe2 = strchr(p, '|');
+        if (!pipe2) continue;
+        *pipe2 = '\0';
+        char* friends_part = p;
+        char* requests_part = pipe2 + 1;
+        
+        // Parse friends
+        if (strlen(friends_part) > 0) {
+            char* ctx;
+            char* f = strtok(friends_part, ",");
+            while (f) {
+                if (u->friend_count < MAX_FRIENDS) {
+                    strncpy(u->friends[u->friend_count++], f, MAX_USERNAME - 1);
+                }
+                f = strtok(NULL, ",");
+            }
+        }
+
+        // Parse requests
+        if (strlen(requests_part) > 0) {
+            char* req = strtok(requests_part, ",");
+            while (req) {
+                 if (u->request_count < MAX_FRIENDS)
+                    strncpy(u->friend_requests[u->request_count++], req, MAX_USERNAME - 1);
+                req = strtok(NULL, ",");
+            }
+        }
+    }
+    fclose(file);
+}
+
 // Initialize server socket
 int init_server(socket_t* server_socket) {
     #ifdef _WIN32
@@ -139,6 +219,9 @@ int init_server(socket_t* server_socket) {
     } else if (loaded > 0) {
         printf("Loaded %d accounts from %s\n", loaded, ACCOUNT_FILE);
     }
+    
+    load_friends_state(&server_state);
+    printf("Loaded friend data\n");
 
     printf("Server started on port %d\n", PORT);
     return 0;
@@ -175,8 +258,10 @@ void add_user(ServerState* state, const char* username, const char* password) {
     strncpy(new_user->password, password, MAX_USERNAME - 1);
     new_user->is_online = false;
     new_user->socket = INVALID_SOCKET;
+    new_user->last_seen = 0;
     new_user->blocked_count = 0;
     new_user->friend_count = 0;
+    new_user->request_count = 0;
 }
 
 // Send response to client
@@ -189,8 +274,7 @@ void send_response(socket_t socket, CommandType cmd, const char* content) {
     int len;
     char* buffer = serialize_protocol_message(&msg, &len);
     if (buffer) {
-        int sent = send(socket, buffer, len, 0);
-        if (sent == SOCKET_ERROR) {
+        if (send_all(socket, buffer, len) < 0) {
             #ifdef _WIN32
             printf("Send failed: %d\n", WSAGetLastError());
             #else
@@ -223,10 +307,12 @@ bool are_friends(User* user1, User* user2) {
 
 // Add friend relationship (bidirectional)
 void add_friend(User* user1, User* user2) {
-    if (are_friends(user1, user2)) return;
-    
-    strncpy(user1->friends[user1->friend_count++], user2->username, MAX_USERNAME - 1);
-    strncpy(user2->friends[user2->friend_count++], user1->username, MAX_USERNAME - 1);
+    if (!are_friends(user1, user2)) {
+        strncpy(user1->friends[user1->friend_count++], user2->username, MAX_USERNAME - 1);
+    }
+    if (!are_friends(user2, user1)) {
+        strncpy(user2->friends[user2->friend_count++], user1->username, MAX_USERNAME - 1);
+    }
 }
 
 // Handle client connection
@@ -245,7 +331,8 @@ void* handle_client(void* arg) {
 
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
-        int bytes_received = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
+        // Use recv_line to read a full message ending with \n
+        int bytes_received = recv_line(client_socket, buffer, BUFFER_SIZE);
         
         if (bytes_received <= 0) {
             break;
@@ -265,15 +352,24 @@ void* handle_client(void* arg) {
         switch (msg->cmd) {
             case CMD_LOGIN: {
                 User* user = find_user(state, msg->sender);
-                if (user && strcmp(user->password, msg->content) == 0) {
-                    user->is_online = true;
-                    user->socket = client_socket;
-                    current_user = user;
-                    send_response(client_socket, CMD_SUCCESS, "Login successful");
-                    log_activity(msg->sender, "LOGIN", "User logged in");
+                if (user) {
+                    if (user->is_online) {
+                        send_response(client_socket, CMD_ERROR, "User already logged in on another device");
+                        break;
+                    }
                     
-                    // Send offline messages
-                    // Implementation would load from file
+                    if (strcmp(user->password, msg->content) == 0) {
+                        user->is_online = true;
+                        user->socket = client_socket;
+                        current_user = user;
+                        send_response(client_socket, CMD_SUCCESS, "Login successful");
+                        log_activity(msg->sender, "LOGIN", "User logged in");
+                        
+                        // Send offline messages
+                        // Implementation would load from file
+                    } else {
+                        send_response(client_socket, CMD_ERROR, "Invalid credentials");
+                    }
                 } else {
                     send_response(client_socket, CMD_ERROR, "Invalid credentials");
                 }
@@ -304,15 +400,25 @@ void* handle_client(void* arg) {
                 }
                 
                 char friend_list[BUFFER_SIZE] = "Friends: ";
-                for (int i = 0; i < current_user->friend_count; i++) {
-                    User* friend = find_user(state, current_user->friends[i]);
-                    if (friend) {
-                        strcat(friend_list, friend->username);
-                        strcat(friend_list, friend->is_online ? "(online) " : "(offline) ");
+                if (current_user->friend_count == 0) {
+                    strcat(friend_list, "(none)");
+                } else {
+                    for (int i = 0; i < current_user->friend_count; i++) {
+                        User* f = find_user(state, current_user->friends[i]);
+                        if (f) {
+                            char info[200];
+                            if (f->is_online) {
+                                snprintf(info, sizeof(info), "%s [ONLINE]; ", f->username);
+                            } else {
+                                char* last_seen_str = get_timestamp_string(f->last_seen);
+                                snprintf(info, sizeof(info), "%s [OFFLINE] (Last seen: %s); ", f->username, last_seen_str);
+                                free(last_seen_str);
+                            }
+                            strcat(friend_list, info);
+                        }
                     }
                 }
                 send_response(client_socket, CMD_GET_FRIENDS, friend_list);
-                log_activity(current_user->username, "GET_FRIENDS", "Retrieved friend list");
                 break;
             }
             
@@ -339,8 +445,191 @@ void* handle_client(void* arg) {
                 }
                 
                 add_friend(current_user, friend_user);
+                save_friends_state(state); // Persist
                 send_response(client_socket, CMD_SUCCESS, "Friend added");
                 log_activity(current_user->username, "ADD_FRIEND", msg->recipient);
+                break;
+            }
+
+            case CMD_FRIEND_REQUEST: {
+                if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in"); break; 
+                }
+                if (strcmp(current_user->username, msg->recipient) == 0) {
+                    send_response(client_socket, CMD_ERROR, "Cannot request yourself"); break;
+                }
+                
+                User* target = find_user(state, msg->recipient);
+                if (!target) {
+                    send_response(client_socket, CMD_ERROR, "User not found"); break;
+                }
+                
+                if (are_friends(current_user, target)) {
+                    send_response(client_socket, CMD_ERROR, "Already friends"); break;
+                }
+                
+                // Check if already requested
+                bool already_requested = false;
+                for (int i=0; i < target->request_count; i++) {
+                    if (strcmp(target->friend_requests[i], current_user->username) == 0) {
+                        already_requested = true; break;
+                    }
+                }
+                if (already_requested) {
+                    send_response(client_socket, CMD_ERROR, "Request already sent"); break;
+                }
+                
+                strncpy(target->friend_requests[target->request_count++], current_user->username, MAX_USERNAME - 1);
+                save_friends_state(state);
+                send_response(client_socket, CMD_SUCCESS, "Friend request sent");
+                
+                // Notify target if online
+                if (target->is_online && target->socket != INVALID_SOCKET) {
+                   ProtocolMessage notify_msg;
+                   memset(&notify_msg, 0, sizeof(ProtocolMessage));
+                   notify_msg.cmd = CMD_RECEIVE_MESSAGE; // Use generic receive or create a notification cmd? 
+                   // Let's use CMD_RECEIVE_MESSAGE with MSG_SYSTEM type for simplicity
+                   notify_msg.msg_type = MSG_SYSTEM;
+                   strcpy(notify_msg.sender, "SYSTEM");
+                   strcpy(notify_msg.recipient, target->username);
+                   snprintf(notify_msg.content, sizeof(notify_msg.content), "You have a new friend request from %s", current_user->username);
+                   
+                   int len;
+                   char* data = serialize_protocol_message(&notify_msg, &len);
+                   send_all(target->socket, data, len);
+                   free(data);
+                }
+                break;
+            }
+
+            case CMD_FRIEND_ACCEPT: {
+                 if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in"); break; 
+                }
+                char* requester_name = msg->recipient; // Reusing recipient field for target username
+                bool found_req = false;
+                for (int i=0; i < current_user->request_count; i++) {
+                    if (strcmp(current_user->friend_requests[i], requester_name) == 0) {
+                        // Remove request
+                        for (int j=i; j < current_user->request_count - 1; j++) {
+                            strcpy(current_user->friend_requests[j], current_user->friend_requests[j+1]);
+                        }
+                        current_user->request_count--;
+                        found_req = true;
+                        break;
+                    }
+                }
+                
+                if (!found_req) {
+                    send_response(client_socket, CMD_ERROR, "Request not found"); break;
+                }
+                
+                User* requester = find_user(state, requester_name);
+                if (requester) {
+                    add_friend(current_user, requester);
+                    save_friends_state(state);
+                    send_response(client_socket, CMD_SUCCESS, "Friend request accepted");
+
+                    // Notify requester if online
+                    if (requester->is_online && requester->socket != INVALID_SOCKET) {
+                       ProtocolMessage notify_msg;
+                       memset(&notify_msg, 0, sizeof(ProtocolMessage));
+                       notify_msg.cmd = CMD_RECEIVE_MESSAGE; 
+                       notify_msg.msg_type = MSG_SYSTEM;
+                       strcpy(notify_msg.sender, "SYSTEM");
+                       strcpy(notify_msg.recipient, requester->username);
+                       snprintf(notify_msg.content, sizeof(notify_msg.content), "%s accepted your friend request", current_user->username);
+                       
+                       int len;
+                       char* data = serialize_protocol_message(&notify_msg, &len);
+                       send_all(requester->socket, data, len);
+                       free(data);
+                    }
+                }
+                break;
+            }
+
+            case CMD_FRIEND_REJECT: {
+                 if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in"); break; 
+                }
+                char* requester_name = msg->recipient;
+                bool found_req = false;
+                for (int i=0; i < current_user->request_count; i++) {
+                    if (strcmp(current_user->friend_requests[i], requester_name) == 0) {
+                        // Remove request
+                        for (int j=i; j < current_user->request_count - 1; j++) {
+                            strcpy(current_user->friend_requests[j], current_user->friend_requests[j+1]);
+                        }
+                        current_user->request_count--;
+                        found_req = true;
+                        break;
+                    }
+                }
+                if (found_req) {
+                    save_friends_state(state);
+                    send_response(client_socket, CMD_SUCCESS, "Friend request rejected");
+                } else {
+                    send_response(client_socket, CMD_ERROR, "Request not found");
+                }
+                break;
+            }
+
+            case CMD_GET_REQUESTS: {
+                if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in"); break;
+                }
+                char req_list[BUFFER_SIZE] = "Friend Requests: ";
+                if (current_user->request_count == 0) {
+                    strcat(req_list, "(none)");
+                } else {
+                    for (int i = 0; i < current_user->request_count; i++) {
+                        strcat(req_list, current_user->friend_requests[i]);
+                        strcat(req_list, " ");
+                    }
+                }
+                send_response(client_socket, CMD_GET_REQUESTS, req_list);
+                break;
+            }
+            
+            case CMD_REMOVE_FRIEND: { // UNFRIEND
+                if (!current_user) {
+                    send_response(client_socket, CMD_ERROR, "Not logged in"); break;
+                }
+                User* friend_user = find_user(state, msg->recipient);
+                
+                bool removed = false;
+                // Remove forward
+                for (int i=0; i < current_user->friend_count; i++) {
+                    if (strcmp(current_user->friends[i], msg->recipient) == 0) {
+                         for (int j=i; j < current_user->friend_count - 1; j++) {
+                            strcpy(current_user->friends[j], current_user->friends[j+1]);
+                        }
+                        current_user->friend_count--;
+                        removed = true;
+                        break;
+                    }
+                }
+                
+                // Remove backward
+                if (friend_user) {
+                    for (int i=0; i < friend_user->friend_count; i++) {
+                        if (strcmp(friend_user->friends[i], current_user->username) == 0) {
+                             for (int j=i; j < friend_user->friend_count - 1; j++) {
+                                strcpy(friend_user->friends[j], friend_user->friends[j+1]);
+                            }
+                            friend_user->friend_count--;
+                            break;
+                        }
+                    }
+                }
+                
+                if (removed) {
+                    save_friends_state(state);
+                    send_response(client_socket, CMD_SUCCESS, "Friend removed");
+                } else {
+                    send_response(client_socket, CMD_ERROR, "Not friends");
+                }
                 break;
             }
             
@@ -385,7 +674,7 @@ void* handle_client(void* arg) {
                     
                     int len;
                     char* resp_buffer = serialize_protocol_message(&response, &len);
-                    if (send(recipient->socket, resp_buffer, len, 0) == SOCKET_ERROR) {
+                    if (send_all(recipient->socket, resp_buffer, len) < 0) {
                         #ifdef _WIN32
                         printf("Failed to send message to %s: %d\n", msg->recipient, WSAGetLastError());
                         #else
@@ -409,6 +698,7 @@ void* handle_client(void* arg) {
                 /* mark user offline but keep connection open */
                 current_user->is_online = false;
                 current_user->socket = INVALID_SOCKET;
+                current_user->last_seen = time(NULL);
                 send_response(client_socket, CMD_SUCCESS, "Logged out");
                 log_activity(current_user->username, "LOGOUT", "User logged out");
 
@@ -424,6 +714,7 @@ void* handle_client(void* arg) {
                 if (current_user) {
                     current_user->is_online = false;
                     current_user->socket = INVALID_SOCKET;
+                    current_user->last_seen = time(NULL);
                     log_activity(current_user->username, "DISCONNECT", "User disconnected");
                     
                     // Notify friends
@@ -646,7 +937,7 @@ void* handle_client(void* arg) {
                     User* member = find_user(state, group->members[i]);
                     if (member && member->is_online && member->socket != INVALID_SOCKET && 
                         strcmp(member->username, current_user->username) != 0) {
-                        if (send(member->socket, resp_buffer, len, 0) == SOCKET_ERROR) {
+                        if (send_all(member->socket, resp_buffer, len) < 0) {
                             #ifdef _WIN32
                             printf("Failed to send group message to %s: %d\n", member->username, WSAGetLastError());
                             #else
@@ -803,6 +1094,26 @@ void* handle_client(void* arg) {
                 break;
             }
             
+            case CMD_CHECK_STATUS: {
+                // Return status and last seen of a user
+                User* target = find_user(state, msg->recipient);
+                if (target) {
+                    char status_info[BUFFER_SIZE];
+                    if (target->is_online) {
+                        snprintf(status_info, sizeof(status_info), "User %s is ONLINE", target->username);
+                    } else {
+                        char* time_str = get_timestamp_string(target->last_seen);
+                        snprintf(status_info, sizeof(status_info), "User %s is OFFLINE (Last seen: %s)", 
+                                target->username, time_str);
+                        free(time_str);
+                    }
+                    send_response(client_socket, CMD_SUCCESS, status_info);
+                } else {
+                    send_response(client_socket, CMD_ERROR, "User not found");
+                }
+                break;
+            }
+            
             default:
                 send_response(client_socket, CMD_ERROR, "Unknown command");
                 break;
@@ -849,7 +1160,7 @@ void broadcast_to_friends(ServerState* state, const char* username, const char* 
     for (int i = 0; i < user->friend_count; i++) {
         User* friend = find_user(state, user->friends[i]);
         if (friend && friend->is_online && friend->socket != INVALID_SOCKET) {
-            if (send(friend->socket, buffer, len, 0) == SOCKET_ERROR) {
+            if (send_all(friend->socket, buffer, len) < 0) {
                 #ifdef _WIN32
                 printf("Failed to broadcast to %s: %d\n", friend->username, WSAGetLastError());
                 #else
@@ -867,11 +1178,14 @@ void save_message_to_file(const char* sender, const char* recipient, const char*
     FILE* file = fopen("messages.txt", "a");
     if (file) {
         time_t now = time(NULL);
-        char* time_str = get_timestamp_string(now);
-        fprintf(file, "[%s] %s -> %s (%s): %s\n", 
-                time_str, sender, recipient, is_group ? "GROUP" : "1-1", content);
+        // Format: MSG_ID|TIMESTAMP|SENDER|RECIPIENT|CONTENT
+        // Generating a simple MSG_ID based on timestamp for now, similar to how it's done in SEND_MESSAGE
+        char msg_id[100];
+        snprintf(msg_id, sizeof(msg_id), "%s_%lld", sender, (long long)now);
+        
+        fprintf(file, "%s|%lld|%s|%s|%s\n", 
+                msg_id, (long long)now, sender, recipient, content);
         fclose(file);
-        free(time_str);
     }
 }
 

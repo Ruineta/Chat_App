@@ -1,6 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define _WIN32_WINNT 0x0600
+#define __USE_MINGW_ANSI_STDIO 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,6 +81,12 @@ typedef enum {
     CMD_UNBLOCK_USER = 15,
     CMD_PIN_MESSAGE = 16,
     CMD_GET_PINNED = 17,
+    CMD_CHECK_STATUS = 19, // New command from design
+    CMD_FRIEND_REQUEST = 20,
+    CMD_FRIEND_ACCEPT = 21,
+    CMD_FRIEND_REJECT = 22,
+    CMD_REMOVE_FRIEND = 23, // UNFRIEND
+    CMD_GET_REQUESTS = 24,
     CMD_ERROR = 99,
     CMD_SUCCESS = 100
 } CommandType;
@@ -97,11 +106,14 @@ typedef struct {
     char username[MAX_USERNAME];
     char password[MAX_USERNAME];
     bool is_online;
+    time_t last_seen; // From design requirements
     socket_t socket;
     char blocked_users[MAX_FRIENDS][MAX_USERNAME];
     int blocked_count;
     char friends[MAX_FRIENDS][MAX_USERNAME];
     int friend_count;
+    char friend_requests[MAX_FRIENDS][MAX_USERNAME]; // Pending requests
+    int request_count;
 } User;
 
 // Group structure
@@ -135,6 +147,8 @@ char* serialize_protocol_message(ProtocolMessage* msg, int* len);
 ProtocolMessage* deserialize_protocol_message(char* buffer, int len);
 char* get_timestamp_string(time_t t);
 void trim_newline(char* str);
+int send_all(socket_t socket, const char* data, int len);
+int recv_line(socket_t socket, char* buffer, int size);
 
 #endif // COMMON_H
 
