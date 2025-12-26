@@ -5,5 +5,5 @@ testuser1|testuser2,testuser3,test_new|
 testuser2|testuser1,testuser3|
 testuser3|testuser2,testuser1|
 test_new|testuser1|
-giang1b|giang2b|
+giang1b|giang2b|giang2b
 giang2b|giang1b|

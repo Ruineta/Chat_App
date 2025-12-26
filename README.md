@@ -53,10 +53,25 @@ A simple TCP-based chat application with multithreading support, implementing al
 
 ## Architecture
 
-- **Server**: Multithreaded TCP server handling multiple client connections
-- **Client**: TCP client with separate receive thread for real-time messaging
-- **Protocol**: Custom text-based protocol for communication
-- **Storage**: File-based storage for messages and activity logs
+- **Server**: **Single-threaded Event Loop** using I/O Multiplexing (`poll()`). efficient handling of multiple concurrent connections without the overhead of threading.
+- **Client**: Non-blocking Console UI using `poll()` to handle STDIN and Socket events simultaneously, delivering a **Seamless Chat Experience**.
+- **Protocol**: Custom text-based protocol (`CMD|TARGET|CONTENT`) for transparent communication.
+- **Storage**: Flat-file persistence (`account.txt`, `messages.txt`, `friends.txt`) with **Dual-Parser** history loading (supports legacy & new formats).
+
+## Key Design Highlights (Defense Summary)
+
+1. **I/O Multiplexing over Multithreading**:
+   - Eliminated race conditions and deadlock risks.
+   - Reduced memory footprint per connection.
+   - Centralized state management makes logic like "Online Status" and "Friend Blocking" instantaneous.
+
+2. **Dual-Format History Parser**:
+   - The server intelligently detects old message formats (5 fields) and new formats (6 fields with timestamp strings) during loading.
+   - Ensures no data loss during protocol upgrades.
+
+3. **Offline Messaging & Unread Summary**:
+   - Messages sent to offline users are stored.
+   - Upon login, the system aggregates unread messages by sender and notifies the user immediately.
 
 ## Building
 

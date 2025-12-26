@@ -36,17 +36,18 @@
     #include <pthread.h>       // POSIX threads
     #include <sys/types.h>     // System data types
     #include <netdb.h>         // Network database operations
+    #include <poll.h>          // Poll IO Multiplexing
     typedef int socket_t;
     #define close_socket close
     #define INVALID_SOCKET -1
     #define SOCKET_ERROR -1
 #endif
 
-#define MAX_USERNAME 50
+#define MAX_USERNAME 100
 #define MAX_MESSAGE 1024
 #define MAX_CONTENT 2048
 #define MAX_GROUP_NAME 100
-#define MAX_GROUP_ID 50
+#define MAX_GROUP_ID 200
 #define MAX_FRIENDS 100
 #define MAX_GROUPS 50
 #define MAX_MEMBERS 100
@@ -87,6 +88,8 @@ typedef enum {
     CMD_FRIEND_REJECT = 22,
     CMD_REMOVE_FRIEND = 23, // UNFRIEND
     CMD_GET_REQUESTS = 24,
+    CMD_HISTORY = 25,
+    CMD_GET_UNREAD_SUMMARY = 26, // New Unread Breakdown
     CMD_ERROR = 99,
     CMD_SUCCESS = 100
 } CommandType;

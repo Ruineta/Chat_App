@@ -1,530 +1,400 @@
-#include "client.h"  // Includes common.h which has socket libraries
-#include <ctype.h>
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "common.h"
 
-// Socket libraries are included via common.h:
-// Windows: winsock2.h, ws2tcpip.h, windows.h
-// Linux: sys/socket.h, netinet/in.h, arpa/inet.h, sys/types.h, netdb.h
+// =================================================================================
+// FRONTEND ENGINEER NOTES (CONSOLE UI V4):
+// - Professional "GUI-like" Console Experience.
+// - Two-Level Menus: Welcome Screen vs Main Dashboard.
+// - Seamless Chat: Dynamic Redraw with History Buffer (Zalo Style).
+// - System Calls: Uses system("clear") (Linux) / system("cls") (Windows).
+// =================================================================================
 
-socket_t client_socket;
-bool is_connected = false;
-char current_username[MAX_USERNAME] = "";
-bool is_logged_in = false;
-
-// Initialize client socket
-int init_client(socket_t* client_socket, const char* server_ip) {
+// UI Helpers
+void clear_screen() {
     #ifdef _WIN32
-    WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        printf("WSAStartup failed\n");
-        return -1;
-    }
+    system("cls");
+    #else
+    system("clear");
     #endif
+}
 
-    *client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (*client_socket == INVALID_SOCKET) {
-        #ifdef _WIN32
-        printf("Socket creation failed: %d\n", WSAGetLastError());
-        WSACleanup();
-        #else
-        printf("Socket creation failed: %s\n", strerror(errno));
-        #endif
-        return -1;
+// Global State for UI
+char current_username[MAX_USERNAME] = "";
+char current_chat_partner[MAX_USERNAME] = "";
+#define MAX_HISTORY_DISPLAY 20
+char chat_history[MAX_HISTORY_DISPLAY][MAX_CONTENT];
+int history_count = 0;
+
+void add_to_history(const char* msg) {
+    if (history_count < MAX_HISTORY_DISPLAY) {
+        strncpy(chat_history[history_count++], msg, MAX_CONTENT-1);
+    } else {
+        // Shift left
+        for(int i=0; i<MAX_HISTORY_DISPLAY-1; i++) strcpy(chat_history[i], chat_history[i+1]);
+        strncpy(chat_history[MAX_HISTORY_DISPLAY-1], msg, MAX_CONTENT-1);
+    }
+}
+
+// --- RENDER FUNCTIONS ---
+
+void render_welcome_menu() {
+    clear_screen();
+    printf("==========================================\n");
+    printf("         CHAT APPLICATION (v2.0)          \n");
+    printf("==========================================\n");
+    printf("   1. Login                               \n");
+    printf("   2. Register                            \n");
+    printf("   0. Exit                                \n");
+    printf("==========================================\n");
+    printf("Option: ");
+    fflush(stdout);
+}
+
+void render_main_menu() {
+    clear_screen();
+    printf("==========================================\n");
+    printf("     HELLO: %s | ONLINE                   \n", current_username);
+    printf("==========================================\n");
+    printf("--- FRIENDS MANAGEMENT ---   --- MESSAGING ---\n");
+    printf(" 1. Friends List              7. CHAT (Seamless)\n");
+    printf(" 2. Add Friend                8. Group Chat   \n");
+    printf(" 3. Friend Requests           9. Offline Msgs \n");
+    printf(" 4. Block/Unblock            10. Search Msgs  \n");
+    printf(" 5. Accept Friend            12. Group Broadcast\n");
+    printf(" 6. Remove Friend                             \n");
+    printf("\n");
+    printf("--- SYSTEM ---\n");
+    printf(" 0. Logout\n");
+    printf("==========================================\n");
+    printf("Your choice: ");
+    fflush(stdout);
+}
+
+void render_chat_screen() {
+    clear_screen();
+    printf("--------------------------------------------------\n");
+    printf(" Chatting with: %s\n", current_chat_partner);
+    printf(" (Type message and Enter. Type '/exit' to back)\n");
+    printf("--------------------------------------------------\n");
+    for(int i=0; i<history_count; i++) {
+        printf("%s\n", chat_history[i]);
+    }
+    printf("--------------------------------------------------\n");
+    printf("[Me]: ");
+    fflush(stdout);
+}
+
+// State constants
+typedef enum {
+    STATE_WELCOME,
+    STATE_MAIN_MENU,
+    STATE_CHAT_MODE,
+    // Input Sub-states
+    STATE_INPUT_REG_USER, STATE_INPUT_REG_PASS,
+    STATE_INPUT_LOGIN_USER, STATE_INPUT_LOGIN_PASS,
+    STATE_INPUT_CHAT_TARGET,
+    STATE_INPUT_ADD_FRIEND, STATE_INPUT_GROUP_NAME, STATE_INPUT_BLOCK,
+    STATE_INPUT_SEARCH_KEYWORD,
+    // ... others can be added as needed
+} ClientState;
+
+int interaction_step = STATE_WELCOME;
+char temp_data[MAX_CONTENT]; 
+
+int main() {
+    socket_t client_socket;
+    struct sockaddr_in server_addr;
+    char ip[20];
+
+    // Connection Setup (Simplified for UX)
+    clear_screen();
+    printf("Server IP [127.0.0.1]: ");
+    if (fgets(ip, sizeof(ip), stdin)) {
+        trim_newline(ip);
+        if (strlen(ip) == 0) strcpy(ip, "127.0.0.1");
     }
 
-    struct sockaddr_in server_addr;
+    client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == INVALID_SOCKET) { perror("socket"); return 1; }
+
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
-    
-    // Use inet_addr for better compatibility on MinGW/Windows
-    unsigned long addr = inet_addr(server_ip);
-    if (addr == INADDR_NONE) {
-        printf("Invalid address: %s\n", server_ip);
-        close_socket(*client_socket);
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
-        return -1;
-    }
-    server_addr.sin_addr.s_addr = addr;
-
-    if (connect(*client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
-        #ifdef _WIN32
-        printf("Connection failed: %d\n", WSAGetLastError());
-        #else
-        printf("Connection failed: %s\n", strerror(errno));
-        #endif
-        close_socket(*client_socket);
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
-        return -1;
+    if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
+        printf("Invalid Address\n"); return 1;
     }
 
-    is_connected = true;
-    printf("Connected to server\n");
-    return 0;
-}
-
-// Send command to server
-void send_command(socket_t socket, ProtocolMessage* msg) {
-    int len;
-    char* buffer = serialize_protocol_message(msg, &len);
-    if (buffer) {
-        if (send_all(socket, buffer, len) < 0) {
-            #ifdef _WIN32
-            printf("Send failed: %d\n", WSAGetLastError());
-            #else
-            printf("Send failed: %s\n", strerror(errno));
-            #endif
-            is_connected = false;
-        }
-        free(buffer);
-    }
-}
-
-// Receive response from server
-void receive_response(socket_t socket) {
-    char buffer[BUFFER_SIZE];
-    memset(buffer, 0, BUFFER_SIZE);
-    
-    // Use recv_line to ensure we get a full message
-    int bytes_received = recv_line(socket, buffer, BUFFER_SIZE);
-    if (bytes_received <= 0) {
-        is_connected = false;
-        return;
-    }
-    
-    buffer[bytes_received] = '\0';
-    ProtocolMessage* msg = deserialize_protocol_message(buffer, bytes_received);
-    if (!msg) return;
-    
-    switch (msg->cmd) {
-        case CMD_RECEIVE_MESSAGE:
-            printf("\n--------------------------------------------------\n");
-            printf("[Message from %s]: %s\n", msg->sender, msg->content);
-            printf("--------------------------------------------------\n");
-            printf("> ");
-            fflush(stdout);
-            break;
-        case CMD_SUCCESS:
-            printf("Success: %s\n", msg->content);
-            /* Update client login state based on server messages */
-            if (strcmp(msg->content, "Login successful") == 0) {
-                is_logged_in = true;
-            } else if (strcmp(msg->content, "Logged out") == 0) {
-                /* Server confirmed logout */
-                is_logged_in = false;
-                current_username[0] = '\0';
-            }
-            break;
-        case CMD_ERROR:
-            printf("Error: %s\n", msg->content);
-            if (strcmp(msg->content, "Invalid credentials") == 0) {
-                /* clear pending username on failed login */
-                current_username[0] = '\0';
-                is_logged_in = false;
-            }
-            break;
-        case CMD_GET_FRIENDS:
-            printf("%s\n", msg->content);
-            break;
-        case CMD_SEARCH_HISTORY:
-            printf("%s\n", msg->content);
-            break;
-        case CMD_GET_PINNED:
-            printf("%s\n", msg->content);
-            break;
-        case CMD_GET_REQUESTS:
-            printf("%s\n", msg->content);
-            break;
-        default:
-            printf("Response: %s\n", msg->content);
-            break;
-    }
-    
-    free(msg);
-}
-
-// Receive thread function
-void* receive_thread(void* arg) {
-    socket_t socket = *(socket_t*)arg;
-    while (is_connected) {
-        receive_response(socket);
-    }
-    return NULL;
-}
-
-// Print menu (two modes: not-logged-in and logged-in)
-void print_menu() {
-    printf("\n=== Chat Application Menu ===\n");
-    if (!is_logged_in) {
-        printf("1. Register\n");
-        printf("2. Login\n");
-        printf("0. Exit\n");
-        printf("Choice: ");
-        return;
+    if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection Failed"); return 1;
     }
 
-        // Logged-in menu
-        printf("\n==================================================\n");
-        printf("               CHAT APPLICATION                   \n");
-        printf("==================================================\n");
-        printf("   [FRIENDS]                        [GROUPS]      \n");
-        printf("2. Get Friends List          8. Create Group      \n");
-        printf("3. Send Friend Request       9. Add to Group      \n");
-        printf("4. View Friend Requests     10. Remove fro Group  \n");
-        printf("5. Accept/Reject Friend     11. Leave Group       \n");
-        printf("6. Remove Friend            12. Send Group Msg    \n");
-        printf("                            14. Set Group Name    \n");
-        printf("\n   [MESSAGING]                      [TOOLS]       \n");
-        printf("7. Send Message (1-1)       13. Search History    \n");
-        printf("                            15. Block User        \n");
-        printf("                            16. Unblock User      \n");
-        printf("                            17. Pin Message       \n");
-        printf("                            18. Get Pinned        \n");
-        printf("                            19. Check Status      \n");
-        printf("                            20. Disconnect        \n");
-        printf("--------------------------------------------------\n");
-        printf("1. Logout                   0. Exit               \n");
-        printf("==================================================\n");
-        printf("Choice: ");
-}
+    struct pollfd fds[2];
+    fds[0].fd = STDIN_FILENO; fds[0].events = POLLIN;
+    fds[1].fd = client_socket; fds[1].events = POLLIN;
 
-// Handle user input
-void handle_user_input(socket_t socket, const char* username) {
-    char input[BUFFER_SIZE];
-    int choice;
-    
-    while (is_connected) {
-        print_menu();
-        
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            break;
-        }
-        
-        choice = atoi(input);
-        ProtocolMessage msg;
-        memset(&msg, 0, sizeof(ProtocolMessage));
-        /* If the client is logged in use the stored username as sender */
-        if (is_logged_in && current_username[0] != '\0') {
-            strncpy(msg.sender, current_username, MAX_USERNAME - 1);
-        } else {
-            strncpy(msg.sender, username, MAX_USERNAME - 1);
-        }
+    int logged_in = 0;
+    render_welcome_menu();
 
-        if (!is_logged_in) {
-            /* Minimal menu when not logged in */
-            switch (choice) {
-                case 1: {  // Register
-                    char password[MAX_USERNAME];
-                    printf("Enter username: ");
-                    fgets(msg.sender, sizeof(msg.sender), stdin);
-                    trim_newline(msg.sender);
-                    printf("Enter password: ");
-                    fgets(password, sizeof(password), stdin);
-                    trim_newline(password);
-                    msg.cmd = CMD_REGISTER;
-                    strncpy(msg.content, password, MAX_CONTENT - 1);
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 2: {  // Login
-                    char password[MAX_USERNAME];
-                    printf("Enter username: ");
-                    fgets(msg.sender, sizeof(msg.sender), stdin);
-                    trim_newline(msg.sender);
-                    printf("Enter password: ");
-                    fgets(password, sizeof(password), stdin);
-                    trim_newline(password);
+    CommandType pending_cmd = CMD_ERROR;
 
-                    strncpy(current_username, msg.sender, MAX_USERNAME - 1);
-                    msg.cmd = CMD_LOGIN;
-                    strncpy(msg.content, password, MAX_CONTENT - 1);
-                    send_command(socket, &msg);
+    while (1) {
+        int ret = poll(fds, 2, -1);
+        if (ret < 0) break;
 
-                    /* Wait for server response (receive_response runs in separate thread)
-                       Poll is_logged_in or current_username cleared by receive_response on failure
-                       Timeout after ~3 seconds */
-                    int waited_ms = 0;
-                    const int step_ms = 100; /* 100ms */
-                    const int max_wait_ms = 3000; /* 3s */
-                    while (waited_ms < max_wait_ms && !is_logged_in && current_username[0] != '\0') {
-                        #ifdef _WIN32
-                        Sleep(step_ms);
-                        #else
-                        usleep(step_ms * 1000);
-                        #endif
-                        waited_ms += step_ms;
-                    }
-
-                    if (is_logged_in) {
-                        printf("Logged in as %s\n", current_username);
-                    } else if (current_username[0] == '\0') {
-                        printf("Login failed\n");
+        // --- SERVER MESSAGES ---
+        if (fds[1].revents & POLLIN) {
+            char buffer[BUFFER_SIZE];
+            int len = recv(client_socket, buffer, BUFFER_SIZE-1, 0);
+            if (len <= 0) { printf("\nDisconnected.\n"); break; }
+            buffer[len] = '\0';
+            
+            ProtocolMessage* msg = deserialize_protocol_message(buffer, len);
+            if (msg) {
+                if (msg->cmd == CMD_SUCCESS) {
+                    if (pending_cmd == CMD_LOGIN) {
+                        logged_in = 1;
+                        interaction_step = STATE_MAIN_MENU;
+                        render_main_menu();
+                    } else if (pending_cmd == CMD_LOGOUT) {
+                        logged_in = 0;
+                        memset(current_username, 0, sizeof(current_username));
+                        interaction_step = STATE_WELCOME;
+                        render_welcome_menu();
                     } else {
-                        printf("Login timed out, please try again\n");
-                        /* reset pending username */
-                        current_username[0] = '\0';
+                        // Generic Success (Friend Added, etc)
+                         if (interaction_step != STATE_CHAT_MODE) {
+                             printf("\n[SUCCESS] %s\n", msg->content);
+                             printf("Press Enter to continue..."); fflush(stdout);
+                             // We need to wait for user ACK or just redraw? 
+                             // Proper UI waits. But poll loop is fast. 
+                             // Let's just print and let user see it before next input redraws.
+                         }
                     }
-                    break;
+                    pending_cmd = CMD_ERROR;
+                } 
+                else if (msg->cmd == CMD_ERROR) {
+                    printf("\n[ERROR] %s\n", msg->content);
+                    if (interaction_step == STATE_INPUT_LOGIN_PASS) {
+                         // Failed login, retry or back?
+                         printf("Press Enter to return..."); fflush(stdout);
+                         interaction_step = STATE_WELCOME; // Back to start on fail
+                    }
+                } 
+                else if (msg->cmd == CMD_RECEIVE_MESSAGE) {
+                    if (interaction_step == STATE_CHAT_MODE) {
+                        char display_line[BUFFER_SIZE + 200]; // Increased to handle full input buffer
+                        if (strncmp(msg->content, "[History", 8) == 0) {
+                             snprintf(display_line, sizeof(display_line), "%s", msg->content);
+                        } else {
+                             snprintf(display_line, sizeof(display_line), "[%s]: %s", msg->sender, msg->content);
+                        }
+                        add_to_history(display_line);
+                        render_chat_screen();
+                    } else {
+                        // Toast Notification
+                        printf("\n[NEW MSG] %s: %s\n", msg->sender, msg->content);
+                        if (interaction_step == STATE_MAIN_MENU) {
+                             printf("Your choice: "); fflush(stdout); 
+                        }
+                    }
                 }
-                case 0: { // Exit
-                    msg.cmd = CMD_DISCONNECT;
-                    send_command(socket, &msg);
-                    is_connected = false;
-                    return;
+                else {
+                    // Info Messages (Lists, etc)
+                    if (interaction_step != STATE_CHAT_MODE) {
+                        printf("\n%s\n", msg->content);
+                        if (interaction_step == STATE_MAIN_MENU) {
+                             printf("Your choice: "); fflush(stdout);
+                        }
+                    }
                 }
-                default:
-                    printf("Invalid choice\n");
-                    break;
+                free(msg);
             }
-        } else {
-            /* Logged in: Map choices where 1=Logout, 2.. -> other features (shifted from previous numbering)
-               This keeps behaviour similar to earlier menu but forbids registration while logged in */
-            switch (choice) {
-                case 1: {  // Logout
-                    msg.cmd = CMD_LOGOUT;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 2: {
-                    msg.cmd = CMD_GET_FRIENDS;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 3: {  // Send Request
-                    printf("Enter username to request: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_FRIEND_REQUEST;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 4: {  // View Requests
-                    msg.cmd = CMD_GET_REQUESTS;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 5: { // Accept/Reject
-                    printf("1. Accept\n2. Reject\nChoice: ");
-                    char sub[10]; fgets(sub, sizeof(sub), stdin);
-                    int subchoice = atoi(sub);
-                    
-                    printf("Enter username to process: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    
-                    if (subchoice == 1) msg.cmd = CMD_FRIEND_ACCEPT;
-                    else msg.cmd = CMD_FRIEND_REJECT;
-                    
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 6: { // Remove Friend
-                     printf("Enter username to remove: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_REMOVE_FRIEND;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 7: {  // Send Message
-                    printf("Enter recipient username: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    printf("Enter message: ");
-                    fgets(msg.content, sizeof(msg.content), stdin);
-                    trim_newline(msg.content);
-                    printf("Is emoji? (y/n): ");
-                    char emoji_choice = getchar();
-                    getchar();  // consume newline
-                    msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
-                    msg.cmd = CMD_SEND_MESSAGE;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 8: {  // Create Group
-                    printf("Enter group name: ");
-                    fgets(msg.content, sizeof(msg.content), stdin);
-                    trim_newline(msg.content);
-                    msg.cmd = CMD_CREATE_GROUP;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 9: {  // Add to Group
-                    printf("Enter group ID: ");
-                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                    trim_newline(msg.extra_data);
-                    printf("Enter username to add: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_ADD_TO_GROUP;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 10: {  // Remove from Group
-                    printf("Enter group ID: ");
-                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                    trim_newline(msg.extra_data);
-                    printf("Enter username to remove: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_REMOVE_FROM_GROUP;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 11: {  // Leave Group
-                    printf("Enter group ID: ");
-                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                    trim_newline(msg.extra_data);
-                    msg.cmd = CMD_LEAVE_GROUP;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 12: {  // Group Message
-                    printf("Enter group ID: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    printf("Enter message: ");
-                    fgets(msg.content, sizeof(msg.content), stdin);
-                    trim_newline(msg.content);
-                    printf("Is emoji? (y/n): ");
-                    char emoji_choice = getchar();
-                    getchar();
-                    msg.msg_type = (emoji_choice == 'y' || emoji_choice == 'Y') ? MSG_EMOJI : MSG_TEXT;
-                    msg.cmd = CMD_GROUP_MESSAGE;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 13: {  // Search History
-                    printf("Enter search keyword: ");
-                    fgets(msg.content, sizeof(msg.content), stdin);
-                    trim_newline(msg.content);
-                    printf("Enter recipient (or group ID, leave empty for all): ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_SEARCH_HISTORY;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 14: {  // Set Group Name
-                    printf("Enter group ID: ");
-                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                    trim_newline(msg.extra_data);
-                    printf("Enter new group name: ");
-                    fgets(msg.content, sizeof(msg.content), stdin);
-                    trim_newline(msg.content);
-                    msg.cmd = CMD_SET_GROUP_NAME;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 15: {  // Block User
-                    printf("Enter username to block: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_BLOCK_USER;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 16: {  // Unblock User
-                    printf("Enter username to unblock: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_UNBLOCK_USER;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 17: {  // Pin Message
-                    printf("Enter group ID or recipient: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    printf("Enter message ID to pin: ");
-                    fgets(msg.extra_data, sizeof(msg.extra_data), stdin);
-                    trim_newline(msg.extra_data);
-                    msg.cmd = CMD_PIN_MESSAGE;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 18: {  // Get Pinned
-                    printf("Enter group ID or recipient: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_GET_PINNED;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 19: { // Check Status
-                    printf("Enter username to check: ");
-                    fgets(msg.recipient, sizeof(msg.recipient), stdin);
-                    trim_newline(msg.recipient);
-                    msg.cmd = CMD_CHECK_STATUS;
-                    send_command(socket, &msg);
-                    break;
-                }
-                case 20: {  // Disconnect
-                    msg.cmd = CMD_DISCONNECT;
-                    send_command(socket, &msg);
-                    is_connected = false;
-                    break;
-                }
-                default:
-                    printf("Invalid choice\n");
-                    break;
+        }
+
+        // --- USER INPUT ---
+        if (fds[0].revents & POLLIN) {
+            char line[BUFFER_SIZE];
+            if (!fgets(line, sizeof(line), stdin)) break;
+            trim_newline(line);
+            
+            // IGNORE EMPTY ENTER IF NOT NEEDED
+            if (strlen(line) == 0 && interaction_step != STATE_CHAT_MODE) {
+                 // Refresh current screen if just Enter?
+                 if (interaction_step == STATE_MAIN_MENU) render_main_menu();
+                 if (interaction_step == STATE_WELCOME) render_welcome_menu();
+                 continue;
             }
-        
-            // Wait a bit for response (short pause so UI feels responsive)
-            #ifdef _WIN32
-            Sleep(100);
-            #else
-            /* usleep takes microseconds */
-            usleep(100000); /* 100ms */
-            #endif
-            // Response will be handled by receive thread
+
+            if (interaction_step == STATE_WELCOME) {
+                if (strcmp(line, "1") == 0) { // Login
+                    printf("Username: "); fflush(stdout);
+                    interaction_step = STATE_INPUT_LOGIN_USER;
+                } else if (strcmp(line, "2") == 0) { // Register
+                    printf("New Username: "); fflush(stdout);
+                    interaction_step = STATE_INPUT_REG_USER;
+                } else if (strcmp(line, "0") == 0) {
+                    break;
+                } else {
+                    printf("\nInvalid option! Please try again.\nOption: "); fflush(stdout);
+                }
+            }
+            else if (interaction_step == STATE_INPUT_LOGIN_USER) {
+                strcpy(temp_data, line);
+                printf("Password: "); fflush(stdout);
+                interaction_step = STATE_INPUT_LOGIN_PASS;
+            }
+            else if (interaction_step == STATE_INPUT_LOGIN_PASS) {
+                strcpy(current_username, temp_data); // Speculatively set name
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                msg.cmd = CMD_LOGIN; strcpy(msg.sender, temp_data); strcpy(msg.content, line);
+                pending_cmd = CMD_LOGIN;
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+            }
+            else if (interaction_step == STATE_MAIN_MENU) {
+                int choice = atoi(line);
+                if (strcmp(line, "0") == 0) { // Logout
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_LOGOUT; pending_cmd = CMD_LOGOUT;
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                } else if (choice == 1) { // Friends List
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_FRIENDS;
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                } else if (choice == 7) { // Chat
+                     printf("Enter username to chat: "); fflush(stdout);
+                     interaction_step = STATE_INPUT_CHAT_TARGET;
+                } else if (choice == 2) { // Add Friend
+                     printf("Username to add: "); fflush(stdout);
+                     interaction_step = STATE_INPUT_ADD_FRIEND;
+                } // ... Add cases for 3,4,5,6,8,9,10,12 as needed
+                 else if (choice == 3) { // Requests
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_REQUESTS;
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                 }
+                 else if (choice == 4) { // Block/Unblock
+                     printf("Username to block/unblock: "); fflush(stdout);
+                     interaction_step = STATE_INPUT_BLOCK;
+                 }
+                 else if (choice == 5) { // Accept Friend
+                     printf("Username to accept: "); fflush(stdout);
+                     // Reuse/Add STATE_INPUT_ACCEPT_FRIEND? Let's use generic logic or ID.
+                     // The enum doesn't have ACCEPT_FRIEND. Let's add it or use a generic one?
+                     // Let's add STATE_INPUT_ACCEPT_FRIEND to enum or just use magic number for now to save complexity?
+                     // Use magic number 300 from previous versions to be safe, or just add logic.
+                     // Actually, let's map it to a new state ID 105 for clean code.
+                     interaction_step = 105; 
+                 }
+                 else if (choice == 6) { // Remove Friend
+                     printf("Username to remove: "); fflush(stdout);
+                     interaction_step = 106;
+                 }
+                 else if (choice == 8) { // Group Chat (Create)
+                     printf("Enter New Group Name: "); fflush(stdout);
+                     interaction_step = STATE_INPUT_GROUP_NAME;
+                 }
+                 else if (choice == 9) { // 9. Unread Summary
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_UNREAD_SUMMARY;
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                     // Server will return CMD_SUCCESS with the report string
+                 }
+                 else if (choice == 12) { // Group Broadcast (Group Msg)
+                     printf("Enter Group ID: "); fflush(stdout);
+                     interaction_step = 200; // STATE_INPUT_GROUP_MSG_ID
+                 }
+                 else if (choice == 10) { // Search Msgs
+                     printf("Enter keyword: "); fflush(stdout);
+                     interaction_step = STATE_INPUT_SEARCH_KEYWORD; // Need to ensure it's in enum or use constant
+                 } 
+                 else {
+                     printf("\nInvalid choice! Please try again.\nYour choice: "); fflush(stdout);
+                 }
+            }
+            else if (interaction_step == STATE_INPUT_CHAT_TARGET) {
+                strcpy(current_chat_partner, line);
+                history_count = 0; // Clear local history
+                
+                // Fetch History
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                msg.cmd = CMD_HISTORY; strcpy(msg.recipient, current_chat_partner);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                
+                interaction_step = STATE_CHAT_MODE;
+                render_chat_screen();
+            }
+            else if (interaction_step == STATE_CHAT_MODE) {
+                if (strcmp(line, "/exit") == 0) {
+                    interaction_step = STATE_MAIN_MENU;
+                    render_main_menu();
+                } else {
+                    // Send
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                    msg.cmd = CMD_SEND_MESSAGE; strcpy(msg.recipient, current_chat_partner); strcpy(msg.content, line);
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                    
+                    // Local Echo
+                    char display_line[BUFFER_SIZE + 200];
+                    snprintf(display_line, sizeof(display_line), "[Me]: %s", line);
+                    add_to_history(display_line);
+                    render_chat_screen();
+                }
+            }
+             else if (interaction_step == STATE_INPUT_ADD_FRIEND) {
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                msg.cmd = CMD_FRIEND_REQUEST; strcpy(msg.recipient, line);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Request sent. Press Enter."); interaction_step = STATE_MAIN_MENU;
+            }
+            
+            // ... registration inputs (omitted for brevity, similar to login)
+            else if (interaction_step == STATE_INPUT_REG_USER) {
+                 strcpy(temp_data, line); printf("Password: "); fflush(stdout); interaction_step = STATE_INPUT_REG_PASS;
+            }
+            else if (interaction_step == STATE_INPUT_REG_PASS) {
+                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                 msg.cmd = CMD_REGISTER; strcpy(msg.sender, temp_data); strcpy(msg.content, line);
+                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                 interaction_step = STATE_WELCOME; // Back to welcome after reg attempt
+            }
+            // --- NEW INPUT HANDLERS ---
+            else if (interaction_step == STATE_INPUT_BLOCK) {
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_BLOCK_USER; strcpy(msg.recipient, line);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Block command sent.\n"); interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == 105) { // Accept Friend
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_FRIEND_ACCEPT; strcpy(msg.recipient, line);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Accept sent.\n"); interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == 106) { // Remove Friend
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_REMOVE_FRIEND; strcpy(msg.recipient, line);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Remove sent.\n"); interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == STATE_INPUT_GROUP_NAME) { // Create Group
+                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_CREATE_GROUP; strcpy(msg.content, line);
+                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                 interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == 200) { // Group Msg ID
+                strcpy(temp_data, line); // Store Group ID
+                printf("Message content: "); fflush(stdout);
+                interaction_step = 201;
+            }
+            else if (interaction_step == 201) { // Group Msg content
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                msg.cmd = CMD_GROUP_MESSAGE; strcpy(msg.recipient, temp_data); strcpy(msg.content, line);
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == STATE_INPUT_SEARCH_KEYWORD) { // 10. Search logic
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_SEARCH_HISTORY; 
+                strcpy(msg.content, line); strcpy(msg.recipient, "");
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
         }
     }
-}
-
-
-
-// Main client function
-int main(int argc, char* argv[]) {
-    const char* server_ip = (argc > 1) ? argv[1] : "127.0.0.1";
-    
-    if (init_client(&client_socket, server_ip) < 0) {
-        return 1;
-    }
-    
-    // Start receive thread
-    #ifdef _WIN32
-    HANDLE thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)receive_thread, 
-                                 &client_socket, 0, NULL);
-    if (thread == NULL) {
-        printf("Failed to create receive thread\n");
-        close_socket(client_socket);
-        return 1;
-    }
-    #else
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, receive_thread, &client_socket) != 0) {
-        printf("Failed to create receive thread\n");
-        close_socket(client_socket);
-        return 1;
-    }
-    #endif
-    
-    handle_user_input(client_socket, current_username);
-    
-    close_socket(client_socket);
-    #ifdef _WIN32
-    WSACleanup();
-    #endif
-    
+    close(client_socket);
     return 0;
 }
-
