@@ -1,6 +1,10 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+// Feature Test Macros for strdup, usleep, etc.
+#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
+
 #define _WIN32_WINNT 0x0600
 #define __USE_MINGW_ANSI_STDIO 1
 
@@ -90,6 +94,7 @@ typedef enum {
     CMD_GET_REQUESTS = 24,
     CMD_HISTORY = 25,
     CMD_GET_UNREAD_SUMMARY = 26, // New Unread Breakdown
+    CMD_LIST_GROUPS = 27, // Option 13
     CMD_ERROR = 99,
     CMD_SUCCESS = 100
 } CommandType;

@@ -1,6 +1,6 @@
 #include "common.h"
 
-// Log activity to file
+// Log activity to file & console
 void log_activity(const char* username, const char* action, const char* details) {
     FILE* log_file = fopen("activity.log", "a");
     if (log_file) {
@@ -8,6 +8,11 @@ void log_activity(const char* username, const char* action, const char* details)
         char* time_str = get_timestamp_string(now);
         fprintf(log_file, "[%s] User: %s | Action: %s | Details: %s\n", 
                 time_str, username, action, details);
+        
+        // SERVER CONSOLE LOGGING
+        printf("[SERVER LOG %s] User: %s | Action: %s | Info: %s\n", 
+               time_str, username, action, details);
+        
         fclose(log_file);
         free(time_str);
     }

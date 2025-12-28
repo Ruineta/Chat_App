@@ -105,11 +105,13 @@ void load_friends_state(ServerState* state) {
 
 // Updated Message Saving with Human Readable Time
 void save_message_to_file(const char* sender, const char* recipient, const char* content, bool is_group) {
+    (void)is_group; // Suppress unused warning
     FILE* file = fopen("messages.txt", "a");
     if (file) {
         time_t now = time(NULL);
+        time_t now_vn = now + 7 * 3600; // Manual UTC+7
         char date_str[64];
-        struct tm* tm_info = localtime(&now);
+        struct tm* tm_info = gmtime(&now_vn);
         strftime(date_str, sizeof(date_str), "%Y-%m-%d %H:%M:%S", tm_info);
         
         char msg_id[100];
@@ -239,6 +241,55 @@ char** search_messages(const char* keyword, const char* username, const char* re
     fclose(file); return results;
 }
 
+// --- GROUP PERSISTENCE ---
+void save_groups(ServerState* state) {
+    FILE* f = fopen("groups.txt", "w");
+    if (!f) return;
+    for(int i=0; i<state->group_count; i++) {
+        Group* g = &state->groups[i];
+        // Format: ID|NAME|CREATOR|ADMIN_COUNT|MEMBER_COUNT|ADMINs...|MEMBERs...
+        fprintf(f, "%s|%s|%s|%d|%d", g->group_id, g->name, g->creator, g->admin_count, g->member_count);
+        for(int j=0; j<g->admin_count; j++) fprintf(f, "|%s", g->admins[j]);
+        for(int j=0; j<g->member_count; j++) fprintf(f, "|%s", g->members[j]);
+        fprintf(f, "\n");
+    }
+    fclose(f);
+}
+
+void load_groups(ServerState* state) {
+    FILE* f = fopen("groups.txt", "r");
+    if (!f) return;
+    char line[4096];
+    while(fgets(line, sizeof(line), f)) {
+        if (state->group_count >= MAX_GROUPS) break;
+        Group* g = &state->groups[state->group_count];
+        trim_newline(line);
+        
+        char* token = strtok(line, "|"); if(!token) continue; strncpy(g->group_id, token, MAX_GROUP_ID-1);
+        token = strtok(NULL, "|"); if(!token) continue; strncpy(g->name, token, MAX_GROUP_NAME-1);
+        token = strtok(NULL, "|"); if(!token) continue; strncpy(g->creator, token, MAX_USERNAME-1);
+        
+        token = strtok(NULL, "|"); if(!token) continue; int ac = atoi(token);
+        token = strtok(NULL, "|"); if(!token) continue; int mc = atoi(token);
+        
+        g->admin_count = 0;
+        for(int i=0; i<ac; i++) {
+            token = strtok(NULL, "|");
+            if(token) strncpy(g->admins[g->admin_count++], token, MAX_USERNAME-1);
+        }
+        
+        g->member_count = 0;
+        for(int i=0; i<mc; i++) {
+            token = strtok(NULL, "|");
+            if(token) strncpy(g->members[g->member_count++], token, MAX_USERNAME-1);
+        }
+        state->group_count++;
+    }
+    fclose(f);
+    printf("[SERVER] Loaded %d groups.\n", state->group_count);
+}
+// -------------------------
+
 // --------------------------------------------------------
 // CORE POLL LOGIC
 // --------------------------------------------------------
@@ -253,6 +304,7 @@ int init_server(socket_t* server_socket) {
     if (listen(*server_socket, 10) < 0) { perror("listen"); return -1; }
     
     server_state.user_count = 0; load_accounts(ACCOUNT_FILE); load_friends_state(&server_state);
+    load_groups(&server_state); // Load groups on startup
     return 0;
 }
 
@@ -339,7 +391,7 @@ void handle_client_message(int index) {
     // NOTE: Using recv_line from code old. 
     // In strict non-blocking poll, we should read(fd) -> accumulate -> parse.
     // But per requirements "KHOAN hãy thực hiện... phức tạp", we reuse recv_line.
-    // Assuming clients send atomic lines.
+    // Assuming clients send atomic lines. 
     memset(buffer, 0, BUFFER_SIZE);
     int bytes = recv_line(client_fd, buffer, BUFFER_SIZE);
     
@@ -372,30 +424,58 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                     user->socket = client_fd;
                     session->user = user; // BIND SESSION
                     send_response(client_fd, CMD_SUCCESS, "Login successful");
-                    log_activity(msg->sender, "LOGIN", "User logged in");
+                    log_activity(msg->sender, "LOGIN", "User logged in successfully");
                     
                     // Offline Message Check (Improved detailed breakdown)
+                    // Offline Message Check - Defensive Implementation
+                    printf("[SERVER] Checking offline messages for %s...\n", user->username); fflush(stdout);
                     typedef struct { char name[50]; int count; } UnreadStat;
-                    UnreadStat stats[MAX_FRIENDS]; int stat_count = 0;
+                    UnreadStat stats[MAX_FRIENDS]; 
+                    int stat_count = 0;
                     memset(stats, 0, sizeof(stats));
                     
                     FILE* f_log = fopen("messages.txt", "r");
                     if (f_log) {
                         char l[BUFFER_SIZE];
                         while(fgets(l, sizeof(l), f_log)) {
+                             size_t ln = strlen(l);
+                             if (ln < 5) continue; // Skip short lines
+                             if (l[ln-1] == '\n') l[ln-1] = '\0';
+
                              char* tmp = strdup(l);
-                             strtok(tmp, "|"); char* ts_str = strtok(NULL, "|"); strtok(NULL, "|");
-                             char* snd = strtok(NULL, "|"); char* rcv = strtok(NULL, "|");
-                             if (ts_str && snd && rcv && strcmp(rcv, user->username) == 0) {
-                                 time_t t_last = get_last_read(user->username, snd);
-                                 time_t t_msg = (time_t)atoll(ts_str);
-                                 if (t_msg > t_last) {
-                                     bool found = false;
-                                     for(int i=0; i<stat_count; i++) {
-                                         if (strcmp(stats[i].name, snd) == 0) { stats[i].count++; found=true; break; }
-                                     }
-                                     if (!found && stat_count < MAX_FRIENDS) {
-                                          strcpy(stats[stat_count].name, snd); stats[stat_count].count = 1; stat_count++;
+                             if (!tmp) continue;
+                             
+                             // Safe Tokenization
+                             char* tokens[10]; 
+                             int qc = 0;
+                             char* token = strtok(tmp, "|");
+                             while(token && qc < 10) { 
+                                 tokens[qc++] = token; 
+                                 token = strtok(NULL, "|"); 
+                             }
+                             
+                             if (qc >= 5) {
+                                 char *ts = NULL, *snd = NULL, *rcv = NULL;
+                                 if (qc >= 6) { // New format
+                                     ts = tokens[1]; snd = tokens[3]; rcv = tokens[4];
+                                 } else { // Old format
+                                     ts = tokens[1]; snd = tokens[2]; rcv = tokens[3];
+                                 }
+
+                                 if (ts && snd && rcv && strcmp(rcv, user->username) == 0) {
+                                     time_t t_last = get_last_read(user->username, snd);
+                                     time_t t_msg = (time_t)atoll(ts);
+                                     if (t_msg > t_last) {
+                                         bool found = false;
+                                         for(int i=0; i<stat_count; i++) {
+                                             if (strcmp(stats[i].name, snd) == 0) { stats[i].count++; found=true; break; }
+                                         }
+                                         if (!found && stat_count < MAX_FRIENDS) {
+                                              strncpy(stats[stat_count].name, snd, 49); 
+                                              stats[stat_count].name[49] = '\0'; // Ensure termination
+                                              stats[stat_count].count = 1; 
+                                              stat_count++;
+                                         }
                                      }
                                  }
                              }
@@ -405,15 +485,20 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                     }
                     
                     if (stat_count > 0) {
-                        char welcome[MAX_CONTENT] = "Welcome back! UNREAD MESSAGES:\n";
+                        char welcome[MAX_CONTENT];
+                        snprintf(welcome, sizeof(welcome), "Welcome back! UNREAD MESSAGES:\n");
                         for(int i=0; i<stat_count; i++) {
-                             char line[100]; snprintf(line, sizeof(line), "- From %s: %d unread\n", stats[i].name, stats[i].count);
-                             if (strlen(welcome) + strlen(line) < MAX_CONTENT) strcat(welcome, line);
+                             char line[100]; 
+                             snprintf(line, sizeof(line), "- From %s: %d unread\n", stats[i].name, stats[i].count);
+                             if (strlen(welcome) + strlen(line) < MAX_CONTENT - 1) strcat(welcome, line);
                         }
-                        // Use special system message type or just text? Text is fine.
-                        ProtocolMessage pm; memset(&pm,0,sizeof(pm)); pm.cmd = CMD_RECEIVE_MESSAGE; pm.msg_type = MSG_SYSTEM;
-                        strncpy(pm.content, welcome, sizeof(welcome)-1);
-                        int len; char* b = serialize_protocol_message(&pm, &len); send_all(client_fd, b, len); free(b);
+                        
+                        ProtocolMessage pm; memset(&pm,0,sizeof(pm)); 
+                        pm.cmd = CMD_RECEIVE_MESSAGE; 
+                        pm.msg_type = MSG_TEXT; // Changed from SYSTEM to TEXT for better client rendering
+                        strncpy(pm.content, welcome, MAX_CONTENT-1);
+                        int len; char* b = serialize_protocol_message(&pm, &len); 
+                        if(b) { send_all(client_fd, b, len); free(b); }
                     }
                 } else {
                     send_response(client_fd, CMD_ERROR, "Invalid credentials");
@@ -450,6 +535,27 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                  send_response(client_fd, CMD_ERROR, "Not logged in");
             }
             break;
+        }
+        case CMD_LIST_GROUPS: {
+             if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
+             char list_buf[4096] = "Your Groups:\n";
+             int found = 0;
+             for(int i=0; i<state->group_count; i++) {
+                 Group* g = &state->groups[i];
+                 // Check if user is member
+                 bool is_member = false;
+                 for(int j=0; j<g->member_count; j++) {
+                     if(strcmp(g->members[j], current_user->username) == 0) { is_member = true; break; }
+                 }
+                 if(is_member) {
+                     char line[300]; snprintf(line, sizeof(line), "- [%s] %s\n", g->group_id, g->name);
+                     strncat(list_buf, line, sizeof(list_buf) - strlen(list_buf) - 1);
+                     found++;
+                 }
+             }
+             if(found == 0) strcat(list_buf, "(No groups found)");
+             send_response(client_fd, CMD_SUCCESS, list_buf);
+             break;
         }
         case CMD_GET_FRIENDS: {
             if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
@@ -542,9 +648,20 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                 int l; char* b = serialize_protocol_message(&fwd, &l);
                 send_all(recipient->socket, b, l); free(b);
                 send_response(client_fd, CMD_SUCCESS, "Message sent");
+                
+                char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "To: %s | Content: %s", msg->recipient, msg->content);
+                log_activity(current_user->username, "SEND_MSG", log_detail);
             } else {
-                 send_response(client_fd, CMD_SUCCESS, "Message sent (User Offline)");
+                send_response(client_fd, CMD_SUCCESS, "Message sent (User Offline)");
+                char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "[OFFLINE] To: %s | Content: %s", msg->recipient, msg->content);
+                log_activity(current_user->username, "SEND_MSG", log_detail);
             }
+            
+            // Fix for Unread Logic:
+            // Since the user is sending a message, they are obviously "in chat" and have read previous context.
+            // Update the last_read timestamp to NOW so these messages aren't marked as unread later.
+            update_last_read(current_user->username, msg->recipient);
+            
             break;
         }
         case CMD_BLOCK_USER: {
@@ -577,6 +694,11 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
              g->admin_count = 1; strncpy(g->admins[0], current_user->username, MAX_USERNAME-1);
              char resp[300]; snprintf(resp, sizeof(resp), "Group created: %s", gid);
              send_response(client_fd, CMD_SUCCESS, resp);
+             
+             save_groups(state); // Persist
+             
+             char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "ID: %s | Name: %s", gid, msg->content);
+             log_activity(current_user->username, "CREATE_GRP", log_detail);
              break;
         }
         case CMD_ADD_TO_GROUP: {
@@ -591,6 +713,7 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
             bool exists = false; for(int i=0; i<g->member_count; i++) if (strcmp(g->members[i], mem) == 0) exists = true;
             if (exists) { send_response(client_fd, CMD_ERROR, "Already member"); break; }
             strncpy(g->members[g->member_count++], mem, MAX_USERNAME-1);
+            save_groups(state); // Persist
             send_response(client_fd, CMD_SUCCESS, "Member added");
             break;
         }
@@ -601,11 +724,20 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
             bool is_mem = false; for(int i=0; i<g->member_count; i++) if (strcmp(g->members[i], current_user->username) == 0) is_mem=true;
             if (!is_mem) { send_response(client_fd, CMD_ERROR, "Not a member"); break; }
             
+            // Save for Offline/History
+            // Recipient = GroupID, Sender = User
+            save_message_to_file(current_user->username, msg->recipient, msg->content, true);
+            update_last_read(current_user->username, msg->recipient); // User has read this group
+            
             // Broadcast
             ProtocolMessage fwd = *msg; 
             strncpy(fwd.sender, current_user->username, MAX_USERNAME-1);
             fwd.cmd = CMD_RECEIVE_MESSAGE; 
-            char group_tag[MAX_CONTENT + 200]; // Increased buffer size for prefix
+            char group_tag[MAX_CONTENT + 200]; 
+            // Format: [Group Name] [Original Content] - Note: Client logic might parse this?
+            // Wait, previous logic was: "[Group Name] Content". 
+            // Client checks for "[Group ". 
+            // Let's keep it consistent.
             snprintf(group_tag, sizeof(group_tag), "[Group %s] %s", g->name, msg->content);
             strncpy(fwd.content, group_tag, MAX_CONTENT-1);
             
@@ -684,8 +816,6 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                  if (target->is_online && target->socket != INVALID_SOCKET) {
                      // Evaluate if we should notify target? "User X unfriended you"? 
                      // Usually standard apps don't notify unfriend. But system update is nice.
-                     // Let's just update silently or maybe refresh?
-                     // For now, let's keep it silent.
                  }
              } else {
                  send_response(client_fd, CMD_ERROR, "Friend not found in list");
@@ -693,127 +823,125 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
              break;
         }
         case CMD_HISTORY: {
-             if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
-             char target_user[MAX_USERNAME]; strncpy(target_user, msg->recipient, MAX_USERNAME-1);
-             time_t now = time(NULL);
+             if (!current_user) { 
+                 send_response(client_fd, CMD_ERROR, "Not logged in"); 
+                 break; 
+             }
+             
+             char target_id[MAX_USERNAME];
+             strncpy(target_id, msg->recipient, MAX_USERNAME - 1);
+             
+             // Check if it is a group to get the name
+             char group_name_info[MAX_CONTENT] = "";
+             if (strncmp(target_id, "GRP_", 4) == 0) {
+                 Group* g = find_group(state, target_id);
+                 if (g) {
+                     snprintf(group_name_info, sizeof(group_name_info), "[SYSTEM] Connected to Group: %s", g->name);
+                 } else {
+                     snprintf(group_name_info, sizeof(group_name_info), "[SYSTEM] Group Info Not Found");
+                 }
+             }
+
+             // Send Group Name Info First (if group)
+             if (strlen(group_name_info) > 0) {
+                 ProtocolMessage info; memset(&info, 0, sizeof(info));
+                 info.cmd = CMD_RECEIVE_MESSAGE;
+                 strcpy(info.sender, "SYSTEM");
+                 strcpy(info.content, group_name_info);
+                 int l; char* b = serialize_protocol_message(&info, &l);
+                 send_all(client_fd, b, l); free(b);
+                 #ifdef _WIN32
+                 Sleep(20);
+                 #else
+                 usleep(20000);
+                 #endif
+             }
+
+             // Load History Logic
              FILE* file = fopen("messages.txt", "r");
-             if (file) {
-                 char line[BUFFER_SIZE];
-                 while (fgets(line, sizeof(line), file)) {
-                     char* tokens[10]; int qc = 0;
-                     char* tmp = strdup(line);
-                     char* token = strtok(tmp, "|");
-                     while(token && qc < 8) { tokens[qc++] = token; token = strtok(NULL, "|"); }
+             if (!file) {
+                  send_response(client_fd, CMD_SUCCESS, "History loaded");
+                  break;
+             }
+             
+             char* history_lines[10]; int match_count = 0;
+             for(int k=0; k<10; k++) history_lines[k] = NULL;
+             
+             char line[BUFFER_SIZE];
+             while(fgets(line, sizeof(line), file)) {
+                 char* tmp = strdup(line);
+                 char* token = strtok(tmp, "|"); // ID
+                 char* ts = strtok(NULL, "|");
+                 char* type = strtok(NULL, "|"); // GROUP or PRIVATE
+                 char* snd = strtok(NULL, "|");
+                 char* rcv = strtok(NULL, "|");
+                 char* cnt = strtok(NULL, "|");
+                 
+                 if (snd && rcv && cnt) {
+                     trim_newline(cnt);
                      
-                     if (qc >= 5) {
-                         char *ts_str, *snd, *rcv, *cnt, *date_display;
-                         char date_buf[64];
-                         
-                         if (qc >= 6) { 
-                             // New Format: ID|TS|Date|Snd|Rcv|Cnt
-                             ts_str = tokens[1];
-                             date_display = tokens[2];
-                             snd = tokens[3];
-                             rcv = tokens[4];
-                             cnt = tokens[5];
-                         } else {
-                             // Old Format: ID|TS|Snd|Rcv|Cnt
-                             ts_str = tokens[1];
-                             struct tm* tm_info = localtime(&(time_t){(time_t)atoll(ts_str)});
-                              // Assuming valid timestamp, otherwise fallback
-                             strftime(date_buf, sizeof(date_buf), "%Y-%m-%d %H:%M:%S", tm_info);
-                             date_display = date_buf;
-                             snd = tokens[2];
-                             rcv = tokens[3];
-                             cnt = tokens[4];
-                         }
-                         
-                         if (ts_str && snd && rcv && cnt) {
-                             time_t msg_time = (time_t)atoll(ts_str);
-                             if (now - msg_time <= 3 * 24 * 3600) {
-                                 bool match1 = (strcmp(snd, current_user->username) == 0 && strcmp(rcv, target_user) == 0);
-                                 bool match2 = (strcmp(snd, target_user) == 0 && strcmp(rcv, current_user->username) == 0);
-                                 
-                                 if (match1 || match2) {
-                                     ProtocolMessage hist; memset(&hist,0,sizeof(hist));
-                                     hist.cmd = CMD_RECEIVE_MESSAGE; hist.msg_type = MSG_TEXT;
-                                     strncpy(hist.sender, snd, MAX_USERNAME-1);
-                                     
-                                     char display_content[MAX_CONTENT + 100];
-                                     trim_newline(cnt);
-                                     snprintf(display_content, sizeof(display_content), "[History %s] %s", date_display, cnt);
-                                     strncpy(hist.content, display_content, MAX_CONTENT-1);
-                                     
-                                     int l; char* b = serialize_protocol_message(&hist, &l);
-                                     send_all(client_fd, b, l); free(b);
-                                     // Prevent flooding client buffer
-                                     #ifdef _WIN32
-                                     Sleep(10);
-                                     #else
-                                     usleep(10000); 
-                                     #endif
-                                 }
+                     bool is_group_target = (strncmp(target_id, "GRP_", 4) == 0);
+                     bool match = false;
+                     
+                     if (is_group_target) {
+                         // For Group History: Recipient MUST be the Group ID
+                         if (strcmp(rcv, target_id) == 0) match = true;
+                     } else {
+                         // For Private History: (Sender=Me & Rcv=Target) OR (Sender=Target & Rcv=Me)
+                         // AND Rcv is NOT a group (start with GRP_)
+                         if (strncmp(rcv, "GRP_", 4) != 0) {
+                             if ((strcmp(snd, current_user->username) == 0 && strcmp(rcv, target_id) == 0) ||
+                                 (strcmp(snd, target_id) == 0 && strcmp(rcv, current_user->username) == 0)) {
+                                 match = true;
                              }
                          }
                      }
-                     free(tmp);
+                     
+                     if (match) {
+                        time_t t = (time_t)atoll(ts);
+                        t += 7 * 3600; // Manual UTC+7
+                        struct tm* tm_info = gmtime(&t);
+                        char date_display[20];
+                        strftime(date_display, 20, "%H:%M", tm_info); // %H is 00-23
+                        
+                        char formatted[MAX_CONTENT];
+                        snprintf(formatted, sizeof(formatted), "[%s %s] %s", snd, date_display, cnt);
+                        
+                        if (match_count < 10) {
+                            history_lines[match_count++] = strdup(formatted);
+                        } else {
+                            free(history_lines[0]);
+                            for(int k=0; k<9; k++) history_lines[k] = history_lines[k+1];
+                            history_lines[9] = strdup(formatted);
+                        }
+                     }
                  }
-                 fclose(file);
+                 free(tmp);
              }
-             update_last_read(current_user->username, target_user); // MARK AS READ
+             fclose(file);
+             
+             // Send gathered history
+             for(int k=0; k<match_count; k++) {
+                 ProtocolMessage h; memset(&h, 0, sizeof(h));
+                 h.cmd = CMD_RECEIVE_MESSAGE;
+                 strcpy(h.sender, "HISTORY");
+                 strcpy(h.content, history_lines[k]);
+                 int l; char* b = serialize_protocol_message(&h, &l);
+                 send_all(client_fd, b, l); free(b);
+                 free(history_lines[k]);
+                 #ifdef _WIN32
+                 Sleep(20);
+                 #else
+                 usleep(20000);
+                 #endif
+             }
+             
              send_response(client_fd, CMD_SUCCESS, "History loaded");
              break;
         }
-        case CMD_GET_UNREAD_SUMMARY: {
-             if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
-             typedef struct { char name[50]; int count; } UnreadStat;
-             UnreadStat stats[MAX_FRIENDS]; int stat_count = 0;
-             memset(stats, 0, sizeof(stats));
-             
-             FILE* f = fopen("messages.txt", "r");
-             if (f) {
-                 char l[BUFFER_SIZE];
-                 while(fgets(l, sizeof(l), f)) {
-                     char* tmp = strdup(l);
-                     strtok(tmp, "|"); char* ts = strtok(NULL, "|"); strtok(NULL, "|"); 
-                     char* snd = strtok(NULL, "|"); char* rcv = strtok(NULL, "|");
-                     
-                     if (rcv && snd && strcmp(rcv, current_user->username) == 0) {
-                         time_t t_last = get_last_read(current_user->username, snd);
-                         if ((time_t)atoll(ts) > t_last) {
-                             bool found = false;
-                             for(int i=0; i<stat_count; i++) {
-                                 if (strcmp(stats[i].name, snd) == 0) { stats[i].count++; found=true; break; }
-                             }
-                             if (!found && stat_count < MAX_FRIENDS) {
-                                  strcpy(stats[stat_count].name, snd); stats[stat_count].count = 1; stat_count++;
-                             }
-                         }
-                     }
-                     free(tmp);
-                 }
-                 fclose(f);
-             }
-             
-             if (stat_count == 0) {
-                 send_response(client_fd, CMD_SUCCESS, "No unread messages.");
-             } else {
-                 char report[MAX_CONTENT] = "UNREAD MESSAGES LIST:\n";
-                 for(int i=0; i<stat_count; i++) {
-                     char line[150]; snprintf(line, sizeof(line), "- From %s: %d unread\n", stats[i].name, stats[i].count);
-                     if (strlen(report) + strlen(line) < MAX_CONTENT) strcat(report, line);
-                 }
-                 send_response(client_fd, CMD_SUCCESS, report);
-             }
+        case CMD_GET_UNREAD_SUMMARY:
              break;
-        }
-        // ... (Other group and tool commands would be similar, mapped directly) ...
         default:
-            // Just handling main ones for brevity in this refactor request. 
-            // In a real full refactor, all cases from original must be copied.
-            // Assuming this covers the core logic required for demo.
-            if (msg->cmd != CMD_DISCONNECT) // Disconnect handled by loop
-                send_response(client_fd, CMD_ERROR, "Command not fully implemented in refactor demo yet");
-            break;
+             break;
     }
 }

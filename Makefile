@@ -2,7 +2,7 @@
 # Supports both Windows (MinGW/MSVC) and Linux
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE
 LDFLAGS = 
 
 # Windows specific
@@ -51,7 +51,7 @@ client.o: client.c client.h common.h
 
 # Clean build files
 clean:
-	rm -f *.o $(SERVER_EXE) $(CLIENT_EXE) activity.log messages.txt
+	rm -f *.o $(SERVER_EXE) $(CLIENT_EXE)
 
 # Run server (for testing)
 run-server: $(SERVER_EXE)

@@ -27,6 +27,40 @@ char current_chat_partner[MAX_USERNAME] = "";
 char chat_history[MAX_HISTORY_DISPLAY][MAX_CONTENT];
 int history_count = 0;
 
+// Notification Tracking
+typedef struct {
+    char sender[MAX_USERNAME];
+    int count;
+} PendingNotif;
+#define MAX_PENDING_SENDERS 20
+PendingNotif pending_notifs[MAX_PENDING_SENDERS];
+int pending_count = 0;
+
+void add_pending_notification(const char* sender) {
+    for(int i=0; i<pending_count; i++) {
+        if(strcmp(pending_notifs[i].sender, sender) == 0) {
+            pending_notifs[i].count++;
+            return;
+        }
+    }
+    if(pending_count < MAX_PENDING_SENDERS) {
+        strncpy(pending_notifs[pending_count].sender, sender, MAX_USERNAME-1);
+        pending_notifs[pending_count].count = 1;
+        pending_count++;
+    }
+}
+
+void clear_pending_notification(const char* sender) {
+    for(int i=0; i<pending_count; i++) {
+        if(strcmp(pending_notifs[i].sender, sender) == 0) {
+            // Remove by shifting
+            for(int j=i; j<pending_count-1; j++) pending_notifs[j] = pending_notifs[j+1];
+            pending_count--;
+            i--; // Recheck index
+        }
+    }
+}
+
 void add_to_history(const char* msg) {
     if (history_count < MAX_HISTORY_DISPLAY) {
         strncpy(chat_history[history_count++], msg, MAX_CONTENT-1);
@@ -59,11 +93,12 @@ void render_main_menu() {
     printf("==========================================\n");
     printf("--- FRIENDS MANAGEMENT ---   --- MESSAGING ---\n");
     printf(" 1. Friends List              7. CHAT (Seamless)\n");
-    printf(" 2. Add Friend                8. Group Chat   \n");
-    printf(" 3. Friend Requests           9. Offline Msgs \n");
-    printf(" 4. Block/Unblock            10. Search Msgs  \n");
-    printf(" 5. Accept Friend            12. Group Broadcast\n");
-    printf(" 6. Remove Friend                             \n");
+    printf(" 2. Add Friend                8. Create Group\n");
+    printf(" 3. Friend Requests           9. Unread Summary\n");
+    printf(" 4. Block/Unblock            10. Search Msgs\n");
+    printf(" 5. Accept Friend            11. Message Group\n");
+    printf(" 6. Remove Friend            12. Invite to Group\n");
+    printf("                             13. My Groups\n");
     printf("\n");
     printf("--- SYSTEM ---\n");
     printf(" 0. Logout\n");
@@ -75,8 +110,18 @@ void render_main_menu() {
 void render_chat_screen() {
     clear_screen();
     printf("--------------------------------------------------\n");
-    printf(" Chatting with: %s\n", current_chat_partner);
+    if (strncmp(current_chat_partner, "GRP_", 4) == 0) {
+        printf(" GROUP CHAT: %s\n", current_chat_partner);
+    } else {
+        printf(" Chatting with: %s\n", current_chat_partner);
+    }
     printf(" (Type message and Enter. Type '/exit' to back)\n");
+    // [MODIFICATION] Show Pending Notifications in Blue
+    for(int i=0; i<pending_count; i++) {
+         // ANSI Blue: \033[1;34m, Reset: \033[0m
+         printf("\033[1;34m [!] You have %d pending message(s) from %s\033[0m\n", 
+                pending_notifs[i].count, pending_notifs[i].sender);
+    }
     printf("--------------------------------------------------\n");
     for(int i=0; i<history_count; i++) {
         printf("%s\n", chat_history[i]);
@@ -103,17 +148,28 @@ typedef enum {
 int interaction_step = STATE_WELCOME;
 char temp_data[MAX_CONTENT]; 
 
-int main() {
+int main(int argc, char *argv[]) {
     socket_t client_socket;
     struct sockaddr_in server_addr;
-    char ip[20];
+    char ip[50];
 
-    // Connection Setup (Simplified for UX)
-    clear_screen();
-    printf("Server IP [127.0.0.1]: ");
-    if (fgets(ip, sizeof(ip), stdin)) {
-        trim_newline(ip);
-        if (strlen(ip) == 0) strcpy(ip, "127.0.0.1");
+    // Connection Setup
+    // Priority 1: Command Line Argument
+    if (argc > 1) {
+        strncpy(ip, argv[1], sizeof(ip)-1);
+        ip[sizeof(ip)-1] = '\0';
+        printf("Connecting to Server IP from argument: %s\n", ip);
+    } 
+    // Priority 2: Interactive Prompt
+    else {
+        clear_screen();
+        printf("Server IP [127.0.0.1]: ");
+        if (fgets(ip, sizeof(ip), stdin)) {
+            trim_newline(ip);
+            if (strlen(ip) == 0) strcpy(ip, "127.0.0.1");
+        } else {
+             strcpy(ip, "127.0.0.1");
+        }
     }
 
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -183,9 +239,70 @@ int main() {
                     }
                 } 
                 else if (msg->cmd == CMD_RECEIVE_MESSAGE) {
+                    // Logic:
+                    // 1. If we are in CHAT_MODE with "PartnerX", and msg is from "PartnerX", show it.
+                    // 2. If msg is from someone else, notifying "New message from Y" (but don't clutter chat screen).
+                    // 3. For Groups: current_chat_partner starts with "GRP_". Msg sender is usually a user, but content has "[Group Name]" tag? 
+                    //    Wait, server sends Group Msg as: sender=ActualUser, content="[Group G] Content".
+                    //    But client needs to filter based on GroupID? 
+                    //    Actually server sends CMD_RECEIVE_MESSAGE. Who is the "channel"? 
+                    //    In current server code, Group messages are sent to members.
+                    //    The client needs to know if this message belongs to the current "Room".
+                    //    Simplification: Server logic for groups puts "[Group Name]" in content. 
+                    //    Let's rely on standard sender check for Private, and Tag check for Group.
+                    
+                    bool show_in_chat = false;
+                    
                     if (interaction_step == STATE_CHAT_MODE) {
-                        char display_line[BUFFER_SIZE + 200]; // Increased to handle full input buffer
-                        if (strncmp(msg->content, "[History", 8) == 0) {
+                        // Case 1: Private Chat (Partner is User)
+                        if (strncmp(current_chat_partner, "GRP_", 4) != 0) { // We are in Private Chat
+                             // Show message IF:
+                             // 1. Sender matches Partner
+                             // 2. AND Content does NOT look like a Group Message (`[Group ...`)
+                             if (strcmp(msg->sender, current_chat_partner) == 0 && strncmp(msg->content, "[Group ", 7) != 0) {
+                                 show_in_chat = true;
+                             }
+                        }
+                        // Case 2: Group Chat (Partner is Group ID)
+                        else { // We are in Group Chat
+                             // Show message IF:
+                             // 1. Content looks like a Group Message
+                             // 2. (Optional) Ideally we check if `recipient` matches `current_chat_partner`, but server sends Recipient=GroupID.
+                             //    However, `msg` struct in client might not preserve it correctly if deserializer is weird?
+                             //    Let's trust `strncmp(msg->content, "[Group ", 7) == 0`.
+                             //    Wait, if I am in Group A, and get message for Group B?
+                             //    I should check if `msg->recipient` == `current_chat_partner`.
+                             //    Let's assume `msg->recipient` is correctly populated by `deserialize_protocol_message`.
+                             
+                             if (strncmp(msg->content, "[Group ", 7) == 0) {
+                                  // Verify it matches THIS group if possible. 
+                                  // Server sends CMD_GROUP_MESSAGE -> sends CMD_RECEIVE_MESSAGE to members.
+                                  // The `fwd` message has `recipient` set to GroupID.
+                                  if (strcmp(msg->recipient, current_chat_partner) == 0) {
+                                      show_in_chat = true;
+                                  }
+                             }
+                        }
+                        
+                        // Case 3: Self-sent (Echo), Search, History
+                        if (strcmp(msg->sender, current_username) == 0 || 
+                                 strncmp(msg->sender, "SEARCH", 6) == 0 ||
+                                 strncmp(msg->sender, "HISTORY", 7) == 0 ||
+                                 strncmp(msg->sender, "SYSTEM", 6) == 0) {
+                             show_in_chat = true;
+                        }
+                    }
+
+                    if (show_in_chat) {
+                        char display_line[BUFFER_SIZE + 200]; 
+                        // If it's a History/Search message, the content usually already has the format [Sender Time] Content
+                        // But wait, our history format is "[Sender Date] Content".
+                        // Standard chat format is "[Sender]: Content".
+                        // Logic: If sender is HISTORY or SEARCH, print content as-is.
+                        if (strcmp(msg->sender, "HISTORY") == 0 || strcmp(msg->sender, "SEARCH") == 0) {
+                            snprintf(display_line, sizeof(display_line), "%s", msg->content);
+                        } 
+                        else if (strncmp(msg->content, "[History", 8) == 0) { // Legacy check
                              snprintf(display_line, sizeof(display_line), "%s", msg->content);
                         } else {
                              snprintf(display_line, sizeof(display_line), "[%s]: %s", msg->sender, msg->content);
@@ -193,10 +310,41 @@ int main() {
                         add_to_history(display_line);
                         render_chat_screen();
                     } else {
-                        // Toast Notification
-                        printf("\n[NEW MSG] %s: %s\n", msg->sender, msg->content);
-                        if (interaction_step == STATE_MAIN_MENU) {
-                             printf("Your choice: "); fflush(stdout); 
+                        // Notification for background message
+                        if (interaction_step == STATE_CHAT_MODE) {
+                            // Filter system/search messages
+                            if (strcmp(msg->sender, "SYSTEM") == 0 || strcmp(msg->sender, "SEARCH") == 0) {
+                                // Ignore
+                            } else {
+                                // Valid notification
+                                // IMPROVEMENT: If it's a group message, show notification from "Group X" instead of "User Y"
+                                char noti_source[MAX_USERNAME];
+                                strncpy(noti_source, msg->sender, MAX_USERNAME-1);
+                                
+                                if (strncmp(msg->content, "[Group ", 7) == 0) {
+                                    // Extract Group Name: "[Group Name] Content"
+                                    char* start = msg->content + 7;
+                                    char* end = strstr(start, "]");
+                                    if (end) {
+                                        int len = end - start;
+                                        if (len > 0 && len < 50) {
+                                            char group_name[51];
+                                            strncpy(group_name, start, len);
+                                            group_name[len] = '\0';
+                                            snprintf(noti_source, sizeof(noti_source), "Group %s", group_name);
+                                        }
+                                    }
+                                }
+                                
+                                add_pending_notification(noti_source);
+                                render_chat_screen(); // Redraw
+                                printf("\a"); // Beep
+                            }
+                        } else {
+                            printf("\n[NEW MSG] %s: %s\n", msg->sender, msg->content);
+                            if (interaction_step == STATE_MAIN_MENU) {
+                                 printf("Your choice: "); fflush(stdout); 
+                            }
                         }
                     }
                 }
@@ -261,7 +409,7 @@ int main() {
                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_FRIENDS;
                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                 } else if (choice == 7) { // Chat
-                     printf("Enter username to chat: "); fflush(stdout);
+                     printf("Enter username or Group ID to chat: "); fflush(stdout);
                      interaction_step = STATE_INPUT_CHAT_TARGET;
                 } else if (choice == 2) { // Add Friend
                      printf("Username to add: "); fflush(stdout);
@@ -277,11 +425,6 @@ int main() {
                  }
                  else if (choice == 5) { // Accept Friend
                      printf("Username to accept: "); fflush(stdout);
-                     // Reuse/Add STATE_INPUT_ACCEPT_FRIEND? Let's use generic logic or ID.
-                     // The enum doesn't have ACCEPT_FRIEND. Let's add it or use a generic one?
-                     // Let's add STATE_INPUT_ACCEPT_FRIEND to enum or just use magic number for now to save complexity?
-                     // Use magic number 300 from previous versions to be safe, or just add logic.
-                     // Actually, let's map it to a new state ID 105 for clean code.
                      interaction_step = 105; 
                  }
                  else if (choice == 6) { // Remove Friend
@@ -297,29 +440,42 @@ int main() {
                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                      // Server will return CMD_SUCCESS with the report string
                  }
-                 else if (choice == 12) { // Group Broadcast (Group Msg)
+                 else if (choice == 11) { // 11. Message Group
                      printf("Enter Group ID: "); fflush(stdout);
                      interaction_step = 200; // STATE_INPUT_GROUP_MSG_ID
                  }
+                 else if (choice == 12) { // 12. Invite to Group
+                     printf("Enter Group ID: "); fflush(stdout);
+                     interaction_step = 202; // STATE_INPUT_GROUP_INVITE_ID
+                 }
+                 else if (choice == 13) { // 13. My Groups
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_LIST_GROUPS;
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                 }
                  else if (choice == 10) { // Search Msgs
                      printf("Enter keyword: "); fflush(stdout);
-                     interaction_step = STATE_INPUT_SEARCH_KEYWORD; // Need to ensure it's in enum or use constant
+                     interaction_step = STATE_INPUT_SEARCH_KEYWORD; 
                  } 
                  else {
                      printf("\nInvalid choice! Please try again.\nYour choice: "); fflush(stdout);
                  }
             }
             else if (interaction_step == STATE_INPUT_CHAT_TARGET) {
-                strcpy(current_chat_partner, line);
-                history_count = 0; // Clear local history
-                
-                // Fetch History
-                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
-                msg.cmd = CMD_HISTORY; strcpy(msg.recipient, current_chat_partner);
-                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                
-                interaction_step = STATE_CHAT_MODE;
-                render_chat_screen();
+                if (strlen(line) > 0) {
+                     strncpy(current_chat_partner, line, MAX_USERNAME-1);
+                     clear_pending_notification(line); // Clear notifications
+                     history_count = 0; // Clear local history
+                     
+                     // Fetch History
+                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                     msg.cmd = CMD_HISTORY; strcpy(msg.recipient, current_chat_partner);
+                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                     
+                     interaction_step = STATE_CHAT_MODE;
+                     render_chat_screen();
+                } else {
+                     printf("Invalid username. Enter again: "); fflush(stdout);
+                }
             }
             else if (interaction_step == STATE_CHAT_MODE) {
                 if (strcmp(line, "/exit") == 0) {
@@ -328,7 +484,13 @@ int main() {
                 } else {
                     // Send
                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
-                    msg.cmd = CMD_SEND_MESSAGE; strcpy(msg.recipient, current_chat_partner); strcpy(msg.content, line);
+                    
+                    if (strncmp(current_chat_partner, "GRP_", 4) == 0) {
+                        msg.cmd = CMD_GROUP_MESSAGE;
+                    } else {
+                        msg.cmd = CMD_SEND_MESSAGE;
+                    }
+                    strcpy(msg.recipient, current_chat_partner); strcpy(msg.content, line);
                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                     
                     // Local Echo
@@ -345,7 +507,6 @@ int main() {
                 printf("Request sent. Press Enter."); interaction_step = STATE_MAIN_MENU;
             }
             
-            // ... registration inputs (omitted for brevity, similar to login)
             else if (interaction_step == STATE_INPUT_REG_USER) {
                  strcpy(temp_data, line); printf("Password: "); fflush(stdout); interaction_step = STATE_INPUT_REG_PASS;
             }
@@ -385,7 +546,19 @@ int main() {
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                 msg.cmd = CMD_GROUP_MESSAGE; strcpy(msg.recipient, temp_data); strcpy(msg.content, line);
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                interaction_step = STATE_MAIN_MENU; render_main_menu();
+                printf("Group message sent. Press Enter."); interaction_step = STATE_MAIN_MENU;
+            }
+            else if (interaction_step == 202) { // Group Invite ID
+                strcpy(temp_data, line);
+                printf("Enter Username to invite: "); fflush(stdout);
+                interaction_step = 203;
+            }
+            else if (interaction_step == 203) { // Group Invite User
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
+                msg.cmd = CMD_ADD_TO_GROUP; 
+                snprintf(msg.content, MAX_CONTENT, "%s %s", temp_data, line); // temp_data=GID, line=User
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Inviting... Press Enter."); interaction_step = STATE_MAIN_MENU;
             }
             else if (interaction_step == STATE_INPUT_SEARCH_KEYWORD) { // 10. Search logic
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_SEARCH_HISTORY; 

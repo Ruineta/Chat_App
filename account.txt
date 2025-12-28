@@ -7,3 +7,4 @@ testuser3 pass3
 test_new 123
 giang1b 123
 giang2b 123
+giang3b 123
