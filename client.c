@@ -3,13 +3,6 @@
 #include <string.h>
 #include "common.h"
 
-// =================================================================================
-// FRONTEND ENGINEER NOTES (CONSOLE UI V4):
-// - Professional "GUI-like" Console Experience.
-// - Two-Level Menus: Welcome Screen vs Main Dashboard.
-// - Seamless Chat: Dynamic Redraw with History Buffer (Zalo Style).
-// - System Calls: Uses system("clear") (Linux) / system("cls") (Windows).
-// =================================================================================
 
 // UI Helpers
 void clear_screen() {
@@ -26,6 +19,11 @@ char current_chat_partner[MAX_USERNAME] = "";
 #define MAX_HISTORY_DISPLAY 20
 char chat_history[MAX_HISTORY_DISPLAY][MAX_CONTENT];
 int history_count = 0;
+int global_pending_friend_count = 0; // NEW: Persistent notification count
+
+// Group Shortcut Cache
+char session_groups[20][MAX_GROUP_ID];
+int session_group_count = 0;
 
 // Notification Tracking
 typedef struct {
@@ -97,9 +95,14 @@ void render_main_menu() {
     printf(" 3. Friend Requests           9. Unread Summary\n");
     printf(" 4. Block/Unblock            10. Search Msgs\n");
     printf(" 5. Accept Friend            11. Message Group\n");
-    printf(" 6. Remove Friend            12. Invite to Group\n");
+    printf(" 6. Remove Friend            12. Invite to My Group\n");
     printf("                             13. My Groups\n");
     printf("\n");
+    if (global_pending_friend_count > 0) {
+        // ANSI Yellow background, black text: \033[43;30m
+        printf("\033[43;30m [!] NOTICE: You have %d pending friend request(s)! Check Option 3 or 5. \033[0m\n\n", 
+               global_pending_friend_count);
+    }
     printf("--- SYSTEM ---\n");
     printf(" 0. Logout\n");
     printf("==========================================\n");
@@ -116,7 +119,7 @@ void render_chat_screen() {
         printf(" Chatting with: %s\n", current_chat_partner);
     }
     printf(" (Type message and Enter. Type '/exit' to back)\n");
-    // [MODIFICATION] Show Pending Notifications in Blue
+    // Show Pending Notifications in Blue
     for(int i=0; i<pending_count; i++) {
          // ANSI Blue: \033[1;34m, Reset: \033[0m
          printf("\033[1;34m [!] You have %d pending message(s) from %s\033[0m\n", 
@@ -140,8 +143,9 @@ typedef enum {
     STATE_INPUT_REG_USER, STATE_INPUT_REG_PASS,
     STATE_INPUT_LOGIN_USER, STATE_INPUT_LOGIN_PASS,
     STATE_INPUT_CHAT_TARGET,
-    STATE_INPUT_ADD_FRIEND, STATE_INPUT_GROUP_NAME, STATE_INPUT_BLOCK,
+    STATE_INPUT_ADD_FRIEND, STATE_INPUT_GROUP_NAME,
     STATE_INPUT_SEARCH_KEYWORD,
+    STATE_WAIT_ENTER,
     // ... others can be added as needed
 } ClientState;
 
@@ -190,7 +194,6 @@ int main(int argc, char *argv[]) {
     fds[0].fd = STDIN_FILENO; fds[0].events = POLLIN;
     fds[1].fd = client_socket; fds[1].events = POLLIN;
 
-    int logged_in = 0;
     render_welcome_menu();
 
     CommandType pending_cmd = CMD_ERROR;
@@ -210,32 +213,61 @@ int main(int argc, char *argv[]) {
             if (msg) {
                 if (msg->cmd == CMD_SUCCESS) {
                     if (pending_cmd == CMD_LOGIN) {
-                        logged_in = 1;
                         interaction_step = STATE_MAIN_MENU;
                         render_main_menu();
                     } else if (pending_cmd == CMD_LOGOUT) {
-                        logged_in = 0;
                         memset(current_username, 0, sizeof(current_username));
                         interaction_step = STATE_WELCOME;
                         render_welcome_menu();
                     } else {
                         // Generic Success (Friend Added, etc)
                          if (interaction_step != STATE_CHAT_MODE) {
-                             printf("\n[SUCCESS] %s\n", msg->content);
-                             printf("Press Enter to continue..."); fflush(stdout);
-                             // We need to wait for user ACK or just redraw? 
-                             // Proper UI waits. But poll loop is fast. 
-                             // Let's just print and let user see it before next input redraws.
+                              bool owned_list = (strncmp(msg->content, "Owned Groups:", 12) == 0);
+                              bool join_list = (strncmp(msg->content, "Your Groups:", 12) == 0);
+
+                              if (owned_list || join_list) {
+                                   // PARSE GROUP IDs for Shortcut
+                                   session_group_count = 0;
+                                   char* tmp = strdup(msg->content);
+                                   char* l_ptr = strtok(tmp, "\n");
+                                   while (l_ptr && session_group_count < 20) {
+                                       char* bracket = strchr(l_ptr, '[');
+                                       char* close_bracket = strchr(l_ptr, ']');
+                                       if (bracket && close_bracket && close_bracket > bracket) {
+                                           int len = close_bracket - bracket - 1;
+                                           if (len < MAX_GROUP_ID) {
+                                               strncpy(session_groups[session_group_count], bracket + 1, len);
+                                               session_groups[session_group_count][len] = '\0';
+                                               session_group_count++;
+                                           }
+                                       }
+                                       l_ptr = strtok(NULL, "\n");
+                                   }
+                                   free(tmp);
+                                   printf("\n%s", msg->content); fflush(stdout);
+                                   if (session_group_count > 0) {
+                                       interaction_step = owned_list ? 1201 : 300;
+                                   }
+                              }
+                                  if (pending_cmd == CMD_GET_REQUESTS && interaction_step == 104) {
+                                      printf("\n[SUCCESS] %s\n", msg->content);
+                                      printf("\n--- SELECT USER FROM LIST ABOVE ---\n");
+                                      printf("Enter Username to handle: "); fflush(stdout);
+                                  } else {
+                                      printf("\n[SUCCESS] %s\n", msg->content);
+                                      printf("Press Enter to continue..."); fflush(stdout);
+                                      interaction_step = STATE_WAIT_ENTER;
+                                  }
+                             }
                          }
-                    }
                     pending_cmd = CMD_ERROR;
                 } 
                 else if (msg->cmd == CMD_ERROR) {
                     printf("\n[ERROR] %s\n", msg->content);
-                    if (interaction_step == STATE_INPUT_LOGIN_PASS) {
-                         // Failed login, retry or back?
-                         printf("Press Enter to return..."); fflush(stdout);
-                         interaction_step = STATE_WELCOME; // Back to start on fail
+                    printf("Press Enter to continue..."); fflush(stdout);
+                    interaction_step = STATE_WAIT_ENTER;
+                    if (pending_cmd == CMD_LOGIN) {
+                         interaction_step = STATE_WELCOME; // Special case: back to welcome on login fail
                     }
                 } 
                 else if (msg->cmd == CMD_RECEIVE_MESSAGE) {
@@ -351,9 +383,20 @@ int main(int argc, char *argv[]) {
                 else {
                     // Info Messages (Lists, etc)
                     if (interaction_step != STATE_CHAT_MODE) {
-                        printf("\n%s\n", msg->content);
-                        if (interaction_step == STATE_MAIN_MENU) {
-                             printf("Your choice: "); fflush(stdout);
+                        // NEW: Check for Friend Count update
+                        if (strncmp(msg->content, "[FRIEND_COUNT] ", 15) == 0) {
+                            global_pending_friend_count = atoi(msg->content + 15);
+                            if (interaction_step == STATE_MAIN_MENU) render_main_menu();
+                        } else {
+                            printf("\n%s\n", msg->content);
+                            if (interaction_step == STATE_MAIN_MENU) {
+                                 printf("Your choice: "); fflush(stdout);
+                            }
+                        }
+                    } else {
+                        // If in chat mode, we might still want to catch friend request updates in the background
+                         if (strncmp(msg->content, "[FRIEND_COUNT] ", 15) == 0) {
+                            global_pending_friend_count = atoi(msg->content + 15);
                         }
                     }
                 }
@@ -368,7 +411,7 @@ int main(int argc, char *argv[]) {
             trim_newline(line);
             
             // IGNORE EMPTY ENTER IF NOT NEEDED
-            if (strlen(line) == 0 && interaction_step != STATE_CHAT_MODE) {
+            if (strlen(line) == 0 && interaction_step != STATE_CHAT_MODE && interaction_step != STATE_WAIT_ENTER && interaction_step != 300 && interaction_step != 1201) {
                  // Refresh current screen if just Enter?
                  if (interaction_step == STATE_MAIN_MENU) render_main_menu();
                  if (interaction_step == STATE_WELCOME) render_welcome_menu();
@@ -418,14 +461,17 @@ int main(int argc, char *argv[]) {
                  else if (choice == 3) { // Requests
                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_REQUESTS;
                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                      pending_cmd = CMD_GET_REQUESTS;
                  }
                  else if (choice == 4) { // Block/Unblock
-                     printf("Username to block/unblock: "); fflush(stdout);
-                     interaction_step = STATE_INPUT_BLOCK;
+                     printf("Enter Username to block/unblock: "); fflush(stdout);
+                     interaction_step = 400;
                  }
-                 else if (choice == 5) { // Accept Friend
-                     printf("Username to accept: "); fflush(stdout);
-                     interaction_step = 105; 
+                 else if (choice == 5) { // Accept/Reject Friend (Enhanced)
+                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_REQUESTS;
+                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                       pending_cmd = CMD_GET_REQUESTS;
+                      interaction_step = 104; 
                  }
                  else if (choice == 6) { // Remove Friend
                      printf("Username to remove: "); fflush(stdout);
@@ -438,20 +484,22 @@ int main(int argc, char *argv[]) {
                  else if (choice == 9) { // 9. Unread Summary
                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_GET_UNREAD_SUMMARY;
                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                      pending_cmd = CMD_GET_UNREAD_SUMMARY;
                      // Server will return CMD_SUCCESS with the report string
                  }
                  else if (choice == 11) { // 11. Message Group
                      printf("Enter Group ID: "); fflush(stdout);
                      interaction_step = 200; // STATE_INPUT_GROUP_MSG_ID
                  }
-                 else if (choice == 12) { // 12. Invite to Group
-                     printf("Enter Group ID: "); fflush(stdout);
-                     interaction_step = 202; // STATE_INPUT_GROUP_INVITE_ID
-                 }
-                 else if (choice == 13) { // 13. My Groups
-                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_LIST_GROUPS;
-                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                 }
+                  else if (choice == 12) { // 12. Invite to My Group
+                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_LIST_OWNED_GROUPS;
+                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                      pending_cmd = CMD_LIST_OWNED_GROUPS;
+                  }
+                  else if (choice == 13) { // 13. My Groups
+                      ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_LIST_GROUPS;
+                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                  }
                  else if (choice == 10) { // Search Msgs
                      printf("Enter keyword: "); fflush(stdout);
                      interaction_step = STATE_INPUT_SEARCH_KEYWORD; 
@@ -479,6 +527,8 @@ int main(int argc, char *argv[]) {
             }
             else if (interaction_step == STATE_CHAT_MODE) {
                 if (strcmp(line, "/exit") == 0) {
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_EXIT_CHAT;
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                     interaction_step = STATE_MAIN_MENU;
                     render_main_menu();
                 } else {
@@ -504,7 +554,7 @@ int main(int argc, char *argv[]) {
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                 msg.cmd = CMD_FRIEND_REQUEST; strcpy(msg.recipient, line);
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Request sent. Press Enter."); interaction_step = STATE_MAIN_MENU;
+                printf("Request sent. Press Enter."); fflush(stdout); interaction_step = STATE_WAIT_ENTER; fflush(stdout);
             }
             
             else if (interaction_step == STATE_INPUT_REG_USER) {
@@ -517,15 +567,52 @@ int main(int argc, char *argv[]) {
                  interaction_step = STATE_WELCOME; // Back to welcome after reg attempt
             }
             // --- NEW INPUT HANDLERS ---
-            else if (interaction_step == STATE_INPUT_BLOCK) {
-                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_BLOCK_USER; strcpy(msg.recipient, line);
-                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Block command sent.\n"); interaction_step = STATE_MAIN_MENU; render_main_menu();
+            else if (interaction_step == 400) { // Block/Unblock Username
+                if (strlen(line) > 0) {
+                    strncpy(temp_data, line, MAX_USERNAME - 1);
+                    printf("Action for %s? (B)lock / (U)nblock / (C)ancel: ", temp_data); fflush(stdout);
+                    interaction_step = 401;
+                } else {
+                    interaction_step = STATE_MAIN_MENU; render_main_menu();
+                }
             }
-            else if (interaction_step == 105) { // Accept Friend
-                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_FRIEND_ACCEPT; strcpy(msg.recipient, line);
-                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Accept sent.\n"); interaction_step = STATE_MAIN_MENU; render_main_menu();
+            else if (interaction_step == 401) { // Block/Unblock Action
+                if (line[0] == 'b' || line[0] == 'B') {
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_BLOCK_USER; strcpy(msg.recipient, temp_data);
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                    printf("Sending Block request...\n");
+                } else if (line[0] == 'u' || line[0] == 'U') {
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_UNBLOCK_USER; strcpy(msg.recipient, temp_data);
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                    printf("Sending Unblock request...\n");
+                }
+                interaction_step = STATE_MAIN_MENU; render_main_menu();
+            }
+            else if (interaction_step == 104) { // 104. Select User from Request List
+                if (strlen(line) > 0) {
+                    strncpy(temp_data, line, MAX_USERNAME - 1);
+                    printf("Action for %s? (A)ccept / (R)eject / (C)ancel: ", temp_data); fflush(stdout);
+                    interaction_step = 105;
+                } else {
+                    interaction_step = STATE_MAIN_MENU; render_main_menu();
+                }
+            }
+            else if (interaction_step == 105) { // 105. Decide Accept/Reject
+                if (line[0] == 'a' || line[0] == 'A') {
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_FRIEND_ACCEPT; strcpy(msg.recipient, temp_data);
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                    printf("Processing Accept...\n");
+                } else if (line[0] == 'r' || line[0] == 'R') {
+                    ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_FRIEND_REJECT; strcpy(msg.recipient, temp_data);
+                    int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                    printf("Processing Reject...\n");
+                }
+                interaction_step = STATE_WAIT_ENTER;
+                printf("\nPress Enter to return to Menu."); fflush(stdout);
+            }
+            else if (interaction_step == STATE_WAIT_ENTER) {
+                interaction_step = STATE_MAIN_MENU;
+                render_main_menu();
             }
             else if (interaction_step == 106) { // Remove Friend
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_REMOVE_FRIEND; strcpy(msg.recipient, line);
@@ -537,7 +624,28 @@ int main(int argc, char *argv[]) {
                  int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                  interaction_step = STATE_MAIN_MENU; render_main_menu();
             }
-            else if (interaction_step == 200) { // Group Msg ID
+            else if (interaction_step == 1201) { // Select Owned Group for Invitation
+                if (strlen(line) == 0) {
+                    interaction_step = STATE_MAIN_MENU; render_main_menu();
+                } else {
+                    int idx = atoi(line);
+                    if (idx >= 1 && idx <= session_group_count) {
+                        strncpy(temp_data, session_groups[idx-1], MAX_CONTENT-1);
+                        printf("Enter Username to invite to %s: ", temp_data); fflush(stdout);
+                        interaction_step = 1202;
+                    } else {
+                        printf("Invalid index! Enter 1-%d or press Enter to cancel: ", session_group_count); fflush(stdout);
+                    }
+                }
+            }
+            else if (interaction_step == 1202) { // Enter Username to invite
+                ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_ADD_TO_GROUP; 
+                snprintf(msg.content, MAX_CONTENT, "%s %s", temp_data, line); // temp_data=GID, line=User
+                int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
+                printf("Processing Invitation...\n");
+                // CMD_SUCCESS will handle the rest
+            }
+            else if (interaction_step == 200) { // Group Msg ID (Legacy/Direct)
                 strcpy(temp_data, line); // Store Group ID
                 printf("Message content: "); fflush(stdout);
                 interaction_step = 201;
@@ -546,7 +654,7 @@ int main(int argc, char *argv[]) {
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                 msg.cmd = CMD_GROUP_MESSAGE; strcpy(msg.recipient, temp_data); strcpy(msg.content, line);
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Group message sent. Press Enter."); interaction_step = STATE_MAIN_MENU;
+                printf("Group message sent. Press Enter."); fflush(stdout); interaction_step = STATE_WAIT_ENTER; fflush(stdout);
             }
             else if (interaction_step == 202) { // Group Invite ID
                 strcpy(temp_data, line);
@@ -558,7 +666,29 @@ int main(int argc, char *argv[]) {
                 msg.cmd = CMD_ADD_TO_GROUP; 
                 snprintf(msg.content, MAX_CONTENT, "%s %s", temp_data, line); // temp_data=GID, line=User
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Inviting... Press Enter."); interaction_step = STATE_MAIN_MENU;
+                printf("Inviting... Press Enter."); fflush(stdout); interaction_step = STATE_WAIT_ENTER; fflush(stdout);
+            }
+            else if (interaction_step == 300) { // Group Shortcut Selection
+                if (strlen(line) == 0) {
+                    interaction_step = STATE_MAIN_MENU;
+                    render_main_menu();
+                } else {
+                    int idx = atoi(line);
+                    if (idx >= 1 && idx <= session_group_count) {
+                        strncpy(current_chat_partner, session_groups[idx-1], MAX_USERNAME-1);
+                        ProtocolMessage req; memset(&req,0,sizeof(req));
+                        req.cmd = CMD_HISTORY; strncpy(req.recipient, current_chat_partner, MAX_USERNAME-1);
+                        int l; char* b = serialize_protocol_message(&req, &l); send_all(client_socket,b,l); free(b);
+                        
+                        interaction_step = STATE_CHAT_MODE;
+                        history_count = 0;
+                        clear_screen();
+                        printf("Entering Chat with %s...\n", current_chat_partner);
+                    } else {
+                        printf("Invalid index! Enter 1-%d or press Enter to cancel: ", session_group_count);
+                        fflush(stdout);
+                    }
+                }
             }
             else if (interaction_step == STATE_INPUT_SEARCH_KEYWORD) { // 10. Search logic
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_SEARCH_HISTORY; 

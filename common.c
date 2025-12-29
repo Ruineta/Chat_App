@@ -1,17 +1,17 @@
 #include "common.h"
 
 // Log activity to file & console
-void log_activity(const char* username, const char* action, const char* details) {
+void log_activity(int slot, const char* username, const char* action, const char* details) {
     FILE* log_file = fopen("activity.log", "a");
     if (log_file) {
         time_t now = time(NULL);
         char* time_str = get_timestamp_string(now);
-        fprintf(log_file, "[%s] User: %s | Action: %s | Details: %s\n", 
-                time_str, username, action, details);
+        fprintf(log_file, "[%s][Slot %d] User: %s | Action: %s | Details: %s\n", 
+                time_str, slot, username, action, details);
         
         // SERVER CONSOLE LOGGING
-        printf("[SERVER LOG %s] User: %s | Action: %s | Info: %s\n", 
-               time_str, username, action, details);
+        printf("[SERVER LOG %s][Slot %d] User: %s | Action: %s | Info: %s\n", 
+               time_str, slot, username, action, details);
         
         fclose(log_file);
         free(time_str);
@@ -79,10 +79,11 @@ char* get_timestamp_string(time_t t) {
     return str;
 }
 
-// Remove newline from string
+// Remove trailing whitespace (newline, carriage return, space, tab)
 void trim_newline(char* str) {
+    if (!str) return;
     int len = strlen(str);
-    while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
+    while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r' || str[len - 1] == ' ' || str[len - 1] == '\t')) {
         str[len - 1] = '\0';
         len--;
     }

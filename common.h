@@ -95,6 +95,8 @@ typedef enum {
     CMD_HISTORY = 25,
     CMD_GET_UNREAD_SUMMARY = 26, // New Unread Breakdown
     CMD_LIST_GROUPS = 27, // Option 13
+    CMD_EXIT_CHAT = 28,  // User leaves a chat screen
+    CMD_LIST_OWNED_GROUPS = 29, // Option 12 (Boss only)
     CMD_ERROR = 99,
     CMD_SUCCESS = 100
 } CommandType;
@@ -150,7 +152,7 @@ typedef struct {
 } ProtocolMessage;
 
 // Function declarations
-void log_activity(const char* username, const char* action, const char* details);
+void log_activity(int slot, const char* username, const char* action, const char* details);
 char* serialize_protocol_message(ProtocolMessage* msg, int* len);
 ProtocolMessage* deserialize_protocol_message(char* buffer, int len);
 char* get_timestamp_string(time_t t);
