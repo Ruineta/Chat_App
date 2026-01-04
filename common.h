@@ -3,7 +3,9 @@
 
 // Feature Test Macros for strdup, usleep, etc.
 #define _POSIX_C_SOURCE 200809L
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #define _WIN32_WINNT 0x0600
 #define __USE_MINGW_ANSI_STDIO 1

@@ -5,7 +5,7 @@ testuser1|||
 testuser2|||
 testuser3|||
 test_new|||
-giang1b|giang2b,giang4b||
+giang1b|giang4b,giang2b||
 giang2b|giang1b||
 giang3b|||
 giang4b|giang1b||

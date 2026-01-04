@@ -247,17 +247,19 @@ int main(int argc, char *argv[]) {
                                    printf("\n%s", msg->content); fflush(stdout);
                                    if (session_group_count > 0) {
                                        interaction_step = owned_list ? 1201 : 300;
+                                   } else {
+                                       printf("\nPress Enter to continue..."); fflush(stdout);
+                                       interaction_step = STATE_WAIT_ENTER;
                                    }
+                              } else if (pending_cmd == CMD_GET_REQUESTS && interaction_step == 104) {
+                                   printf("\n[SUCCESS] %s\n", msg->content);
+                                   printf("\n--- SELECT USER FROM LIST ABOVE ---\n");
+                                   printf("Enter Username to handle: "); fflush(stdout);
+                              } else {
+                                   printf("\n[SUCCESS] %s\n", msg->content);
+                                   printf("Press Enter to continue..."); fflush(stdout);
+                                   interaction_step = STATE_WAIT_ENTER;
                               }
-                                  if (pending_cmd == CMD_GET_REQUESTS && interaction_step == 104) {
-                                      printf("\n[SUCCESS] %s\n", msg->content);
-                                      printf("\n--- SELECT USER FROM LIST ABOVE ---\n");
-                                      printf("Enter Username to handle: "); fflush(stdout);
-                                  } else {
-                                      printf("\n[SUCCESS] %s\n", msg->content);
-                                      printf("Press Enter to continue..."); fflush(stdout);
-                                      interaction_step = STATE_WAIT_ENTER;
-                                  }
                              }
                          }
                     pending_cmd = CMD_ERROR;
@@ -554,7 +556,7 @@ int main(int argc, char *argv[]) {
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                 msg.cmd = CMD_FRIEND_REQUEST; strcpy(msg.recipient, line);
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                printf("Request sent. Press Enter."); fflush(stdout); interaction_step = STATE_WAIT_ENTER; fflush(stdout);
+                printf("Processing request..."); fflush(stdout); 
             }
             
             else if (interaction_step == STATE_INPUT_REG_USER) {
@@ -640,7 +642,7 @@ int main(int argc, char *argv[]) {
             }
             else if (interaction_step == 1202) { // Enter Username to invite
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_ADD_TO_GROUP; 
-                snprintf(msg.content, MAX_CONTENT, "%s %s", temp_data, line); // temp_data=GID, line=User
+                snprintf(msg.content, MAX_CONTENT, "%.500s %.500s", temp_data, line); // temp_data=GID, line=User
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                 printf("Processing Invitation...\n");
                 // CMD_SUCCESS will handle the rest
@@ -664,7 +666,7 @@ int main(int argc, char *argv[]) {
             else if (interaction_step == 203) { // Group Invite User
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                 msg.cmd = CMD_ADD_TO_GROUP; 
-                snprintf(msg.content, MAX_CONTENT, "%s %s", temp_data, line); // temp_data=GID, line=User
+                snprintf(msg.content, MAX_CONTENT, "%.500s %.500s", temp_data, line); // temp_data=GID, line=User
                 int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                 printf("Inviting... Press Enter."); fflush(stdout); interaction_step = STATE_WAIT_ENTER; fflush(stdout);
             }

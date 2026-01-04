@@ -5,6 +5,9 @@
 
 ServerState server_state;
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #define ACCOUNT_FILE "account.txt"
 #define MAX_POLL_CLIENTS 1024 // Maximum concurrent connections
 
@@ -254,9 +257,9 @@ void get_unread_summary_string(ServerState* state, const char* username, char* o
     char line[BUFFER_SIZE];
     while (fgets(line, sizeof(line), file)) {
         char* tmp = strdup(line);
-        char* id = strtok(tmp, "|");
+        strtok(tmp, "|"); // Skip ID
         char* ts_str = strtok(NULL, "|");
-        char* dt = strtok(NULL, "|");
+        strtok(NULL, "|"); // Skip DateTime
         char* snd = strtok(NULL, "|");
         char* rcv = strtok(NULL, "|");
         
@@ -309,7 +312,7 @@ void get_unread_summary_string(ServerState* state, const char* username, char* o
     } else {
         snprintf(output, size, "Welcome back! UNREAD MESSAGES:\n");
         for (int i = 0; i < stat_count; i++) {
-            char row[150];
+            char row[256];
             if (stats[i].is_group) {
                 Group* g = find_group(state, stats[i].name);
                 snprintf(row, sizeof(row), "- Group %s: %d new\n", g ? g->name : stats[i].name, stats[i].count);
@@ -365,8 +368,8 @@ char** search_messages(const char* keyword, const char* username, const char* re
     char line[BUFFER_SIZE];
     while (fgets(line, sizeof(line), file) && *result_count < 100) {
         char* tmp = strdup(line);
-        char* id = strtok(tmp, "|");
-        char* ts = strtok(NULL, "|");
+        strtok(tmp, "|"); // Skip ID
+        strtok(NULL, "|"); // Skip Timestamp
         char* dt = strtok(NULL, "|");
         char* snd = strtok(NULL, "|");
         char* rcv = strtok(NULL, "|");
@@ -666,7 +669,7 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                  }
                  
                  if(match) {
-                     char line[300]; snprintf(line, sizeof(line), "%d. [%s] %s\n", found + 1, g->group_id, g->name);
+                     char line[512]; snprintf(line, sizeof(line), "%d. [%s] %s\n", found + 1, g->group_id, g->name);
                      strncat(list_buf, line, sizeof(list_buf) - strlen(list_buf) - 1);
                      found++;
                  }
@@ -729,19 +732,45 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
         case CMD_FRIEND_REQUEST: {
             if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
             User* target = find_user(state, msg->recipient);
-            if (!target || are_friends(current_user, target)) { send_response(client_fd, CMD_ERROR, "Invalid"); break; }
-            strncpy(target->friend_requests[target->request_count++], current_user->username, MAX_USERNAME-1);
-            save_friends_state(state);
-            send_response(client_fd, CMD_SUCCESS, "Request sent");
             
-            // NEW: Notify target user about the updated count
-            send_friend_request_count(target);
+            if (!target) { 
+                send_response(client_fd, CMD_ERROR, "User not found or does not exist"); 
+                break; 
+            }
+            if (strcmp(current_user->username, msg->recipient) == 0) {
+                send_response(client_fd, CMD_ERROR, "You cannot add yourself as a friend");
+                break;
+            }
+            if (are_friends(current_user, target)) { 
+                send_response(client_fd, CMD_ERROR, "You are already friends with this user"); 
+                break; 
+            }
             
-            if (target->is_online) {
-               ProtocolMessage noti; memset(&noti,0,sizeof(noti)); noti.cmd=CMD_RECEIVE_MESSAGE; noti.msg_type=MSG_SYSTEM;
-               snprintf(noti.content, sizeof(noti.content), "New friend request from %s", current_user->username);
-               int l; char* b = serialize_protocol_message(&noti, &l);
-               send_all(target->socket, b, l); free(b);
+            // Re-check if request already exists
+            bool pending = false;
+            for(int i=0; i<target->request_count; i++) {
+                if(strcmp(target->friend_requests[i], current_user->username) == 0) { pending = true; break; }
+            }
+            if (pending) {
+                send_response(client_fd, CMD_ERROR, "A friend request is already pending");
+                break;
+            }
+
+            if (target->request_count < MAX_FRIENDS) {
+                strncpy(target->friend_requests[target->request_count++], current_user->username, MAX_USERNAME-1);
+                save_friends_state(state);
+                send_response(client_fd, CMD_SUCCESS, "Friend request sent successfully");
+                
+                send_friend_request_count(target);
+                
+                if (target->is_online) {
+                   ProtocolMessage noti; memset(&noti,0,sizeof(noti)); noti.cmd=CMD_RECEIVE_MESSAGE; noti.msg_type=MSG_SYSTEM;
+                   snprintf(noti.content, sizeof(noti.content), "New friend request from %s", current_user->username);
+                   int l; char* b = serialize_protocol_message(&noti, &l);
+                   send_all(target->socket, b, l); free(b);
+                }
+            } else {
+                send_response(client_fd, CMD_ERROR, "Recipient's request list is full");
             }
             break;
         }
@@ -820,11 +849,11 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                     }
                 }
                 
-                char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "To: %s | Content: %s", msg->recipient, msg->content);
+                char log_detail[BUFFER_SIZE]; snprintf(log_detail, sizeof(log_detail), "To: %s | Content: %s", msg->recipient, msg->content);
                 log_activity(index, current_user->username, "SEND_MSG", log_detail);
             } else {
                 send_response(client_fd, CMD_SUCCESS, "Message sent (User Offline)");
-                char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "[OFFLINE] To: %s | Content: %s", msg->recipient, msg->content);
+                char log_detail[BUFFER_SIZE]; snprintf(log_detail, sizeof(log_detail), "[OFFLINE] To: %s | Content: %s", msg->recipient, msg->content);
                 log_activity(index, current_user->username, "SEND_MSG", log_detail);
             }
             
@@ -873,7 +902,7 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
              
              save_groups(state); // Persist
              
-             char log_detail[300]; snprintf(log_detail, sizeof(log_detail), "ID: %s | Name: %s", gid, msg->content);
+             char log_detail[BUFFER_SIZE]; snprintf(log_detail, sizeof(log_detail), "ID: %s | Name: %s", gid, msg->content);
              log_activity(index, current_user->username, "CREATE_GRP", log_detail);
              break;
         }
@@ -1079,9 +1108,9 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
              char line[BUFFER_SIZE];
              while(fgets(line, sizeof(line), file)) {
                  char* tmp = strdup(line);
-                 char* token = strtok(tmp, "|"); // ID
+                 strtok(tmp, "|"); // ID
                  char* ts = strtok(NULL, "|");
-                 char* type = strtok(NULL, "|"); // GROUP or PRIVATE
+                 strtok(NULL, "|"); // Skip DateTime
                  char* snd = strtok(NULL, "|");
                  char* rcv = strtok(NULL, "|");
                  char* cnt = strtok(NULL, "|");
