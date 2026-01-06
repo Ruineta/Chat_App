@@ -219,6 +219,10 @@ int main(int argc, char *argv[]) {
                     if (pending_cmd == CMD_LOGIN) {
                         interaction_step = STATE_MAIN_MENU;
                         render_main_menu();
+                    } else if (pending_cmd == CMD_REGISTER) {
+                        printf("\n[SUCCESS] %s\n", msg->content);
+                        printf("Press Enter to continue..."); fflush(stdout);
+                        interaction_step = STATE_WAIT_ENTER;
                     } else if (pending_cmd == CMD_LOGOUT) {
                         memset(current_username, 0, sizeof(current_username));
                         interaction_step = STATE_WELCOME;
@@ -266,7 +270,7 @@ int main(int argc, char *argv[]) {
                               }
                              }
                          }
-                    pending_cmd = CMD_ERROR;
+                    if (interaction_step != STATE_WAIT_ENTER) pending_cmd = CMD_ERROR;
                 } 
                 else if (msg->cmd == CMD_ERROR) {
                     printf("\n[ERROR] %s\n", msg->content);
@@ -583,7 +587,7 @@ int main(int argc, char *argv[]) {
                  ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
                  msg.cmd = CMD_REGISTER; strcpy(msg.sender, temp_data); strcpy(msg.content, line);
                  int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
-                 interaction_step = STATE_WELCOME; // Back to welcome after reg attempt
+                 pending_cmd = CMD_REGISTER; interaction_step = STATE_WAIT_ENTER; // Back to welcome after SUCCESS handler
             }
             // --- NEW INPUT HANDLERS ---
             else if (interaction_step == 400) { // Block/Unblock Username
@@ -630,8 +634,14 @@ int main(int argc, char *argv[]) {
                 printf("\nPress Enter to return to Menu."); fflush(stdout);
             }
             else if (interaction_step == STATE_WAIT_ENTER) {
-                interaction_step = STATE_MAIN_MENU;
-                render_main_menu();
+                if (pending_cmd == CMD_REGISTER) {
+                    interaction_step = STATE_WELCOME;
+                    render_welcome_menu();
+                    pending_cmd = CMD_ERROR;
+                } else {
+                    interaction_step = STATE_MAIN_MENU;
+                    render_main_menu();
+                }
             }
             else if (interaction_step == 106) { // Remove Friend
                 ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_REMOVE_FRIEND; strcpy(msg.recipient, line);
