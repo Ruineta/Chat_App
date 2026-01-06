@@ -16,6 +16,7 @@ typedef struct {
     int fd;
     User* user; // Pointer to logged-in user in server_state, or NULL
     char current_chat_partner[MAX_USERNAME]; // Target being actively viewed
+    int login_attempts; // Track failed login attempts
 } ClientSession;
 
 struct pollfd poll_fds[MAX_POLL_CLIENTS];
@@ -507,6 +508,7 @@ int main() {
                                 poll_fds[j].events = POLLIN;
                                 sessions[j].fd = new_fd;
                                 sessions[j].user = NULL;
+                                sessions[j].login_attempts = 0;
                                 memset(sessions[j].current_chat_partner, 0, MAX_USERNAME);
                                 if (j >= max_nfds) max_nfds = j + 1;
                                 printf("[Slot %d] New connection accepted\n", j);
@@ -584,17 +586,21 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
     switch (msg->cmd) {
         case CMD_LOGIN: {
             User* user = find_user(state, msg->sender);
+            bool success = false;
+            char error_msg[256] = "";
+
             if (user) {
                 if (user->is_online) {
-                    send_response(client_fd, CMD_ERROR, "User already logged in on another device");
+                    strncpy(error_msg, "User already logged in on another device", sizeof(error_msg)-1);
                 } else if (strcmp(user->password, msg->content) == 0) {
                     user->is_online = true;
                     user->socket = client_fd;
                     session->user = user; // BIND SESSION
+                    session->login_attempts = 0; // Reset on success
                     send_response(client_fd, CMD_SUCCESS, "Login successful");
                     log_activity(index, msg->sender, "LOGIN", "User logged in successfully");
                     
-                    // Offline Message Check (Improved detailed breakdown)
+                    // Offline Message Check
                     char unread_sum[MAX_CONTENT];
                     get_unread_summary_string(state, user->username, unread_sum, sizeof(unread_sum));
                     if (strstr(unread_sum, "UNREAD MESSAGES:")) {
@@ -607,15 +613,29 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                         if(b) { send_all(client_fd, b, len); free(b); }
                     }
                     
-                    // NEW: Send pending friend request count on login
                     if (user->request_count > 0) {
                         send_friend_request_count(user);
                     }
+                    success = true;
                 } else {
-                    send_response(client_fd, CMD_ERROR, "Invalid credentials");
+                    strncpy(error_msg, "Invalid credentials", sizeof(error_msg)-1);
                 }
             } else {
-                send_response(client_fd, CMD_ERROR, "Invalid credentials");
+                strncpy(error_msg, "Invalid credentials", sizeof(error_msg)-1);
+            }
+
+            if (!success) {
+                session->login_attempts++;
+                if (session->login_attempts >= 3) {
+                    send_response(client_fd, CMD_ERROR, "Too many failed attempts. Disconnecting...");
+                    log_activity(index, msg->sender, "LOGIN_FAIL", "Connection closed after 3 failed attempts");
+                    remove_client(index);
+                } else {
+                    char fail_msg[300];
+                    snprintf(fail_msg, sizeof(fail_msg), "%s. Attempt %d/3", error_msg, session->login_attempts);
+                    send_response(client_fd, CMD_ERROR, fail_msg);
+                    log_activity(index, msg->sender, "LOGIN_FAIL", fail_msg);
+                }
             }
             break;
         }
@@ -988,16 +1008,126 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
              }
              break;
         }
-        case CMD_GET_REQUESTS: {
-            if (!current_user) { send_response(client_fd, CMD_ERROR, "Not logged in"); break; }
-            if (current_user->request_count == 0) { send_response(client_fd, CMD_SUCCESS, "--- No pending requests ---"); break; }
-            char list[BUFFER_SIZE] = "PENDING REQUESTS:\n";
-            for(int i=0; i<current_user->request_count; i++) {
-                char line[MAX_USERNAME + 10];
-                snprintf(line, sizeof(line), "- %s\n", current_user->friend_requests[i]);
-                strcat(list, line);
+        case CMD_PIN_MESSAGE: {
+            if (!current_user || strlen(session->current_chat_partner) == 0) {
+                send_response(client_fd, CMD_ERROR, "Not in a chat session");
+                break;
             }
-            send_response(client_fd, CMD_SUCCESS, list);
+            
+            char* keyword = msg->content;
+            char target_id[MAX_USERNAME];
+            strncpy(target_id, session->current_chat_partner, MAX_USERNAME - 1);
+            
+            // Search for the message to pin in messages.txt
+            FILE* f = fopen("messages.txt", "r");
+            if (!f) { send_response(client_fd, CMD_ERROR, "No messages available to pin"); break; }
+            
+            char found_sender[MAX_USERNAME] = "";
+            char found_content[MAX_CONTENT] = "";
+            time_t found_ts = 0;
+            bool found = false;
+
+            char line[BUFFER_SIZE];
+            while(fgets(line, sizeof(line), f)) {
+                char* tmp = strdup(line);
+                strtok(tmp, "|"); // ID
+                char* ts_str = strtok(NULL, "|");
+                strtok(NULL, "|"); // DateTime
+                char* snd = strtok(NULL, "|");
+                char* rcv = strtok(NULL, "|");
+                char* cnt = strtok(NULL, "|");
+                
+                if (snd && rcv && cnt) {
+                    trim_newline(cnt);
+                    bool match_context = false;
+                    if (strncmp(target_id, "GRP_", 4) == 0) {
+                        if (strcmp(rcv, target_id) == 0) match_context = true;
+                    } else {
+                        if ((strcmp(snd, current_user->username) == 0 && strcmp(rcv, target_id) == 0) ||
+                            (strcmp(snd, target_id) == 0 && strcmp(rcv, current_user->username) == 0)) {
+                            match_context = true;
+                        }
+                    }
+                    
+                    if (match_context && strstr(cnt, keyword)) {
+                        strncpy(found_sender, snd, MAX_USERNAME-1);
+                        strncpy(found_content, cnt, MAX_CONTENT-1);
+                        found_ts = (time_t)atoll(ts_str);
+                        found = true;
+                        // Keep searching to find the LATEST match
+                    }
+                }
+                free(tmp);
+            }
+            fclose(f);
+
+            if (found) {
+                // Save to pinned_messages.txt
+                // Strategy: Read all pins, update or add, write back.
+                char** pins = NULL; int count = 0;
+                char context_key[MAX_USERNAME * 2 + 2];
+                if (strncmp(target_id, "GRP_", 4) == 0) {
+                    strcpy(context_key, target_id);
+                } else {
+                    if (strcmp(current_user->username, target_id) < 0)
+                        snprintf(context_key, sizeof(context_key), "%s_%s", current_user->username, target_id);
+                    else
+                        snprintf(context_key, sizeof(context_key), "%s_%s", target_id, current_user->username);
+                }
+
+                FILE* pf = fopen("pinned_messages.txt", "r");
+                if (pf) {
+                    char pline[BUFFER_SIZE];
+                    while(fgets(pline, sizeof(pline), pf)) {
+                        pins = realloc(pins, sizeof(char*) * (count + 1));
+                        pins[count++] = strdup(pline);
+                    }
+                    fclose(pf);
+                }
+
+                FILE* pfw = fopen("pinned_messages.txt", "w");
+                bool updated = false;
+                for (int i = 0; i < count; i++) {
+                    char* copy = strdup(pins[i]);
+                    char* ctx = strtok(copy, "|");
+                    if (ctx && strcmp(ctx, context_key) == 0) {
+                        fprintf(pfw, "%s|%s|%lld|%s\n", context_key, found_sender, (long long)found_ts, found_content);
+                        updated = true;
+                    } else {
+                        fprintf(pfw, "%s", pins[i]);
+                    }
+                    free(copy); free(pins[i]);
+                }
+                if (!updated) {
+                    fprintf(pfw, "%s|%s|%lld|%s\n", context_key, found_sender, (long long)found_ts, found_content);
+                }
+                fclose(pfw);
+                if (pins) free(pins);
+
+                // Notify all members if it's a group, or just the partner
+                ProtocolMessage noti; memset(&noti, 0, sizeof(noti));
+                noti.cmd = CMD_RECEIVE_MESSAGE; strcpy(noti.sender, "PINNED_SYSTEM");
+                snprintf(noti.content, MAX_CONTENT, "%.100s: %.1900s", found_sender, found_content);
+                int l; char* b = serialize_protocol_message(&noti, &l);
+
+                if (strncmp(target_id, "GRP_", 4) == 0) {
+                    Group* g = find_group(state, target_id);
+                    if (g) {
+                        for (int i = 0; i < g->member_count; i++) {
+                            User* m = find_user(state, g->members[i]);
+                            if (m && m->is_online && m->socket != INVALID_SOCKET) send_all(m->socket, b, l);
+                        }
+                    }
+                } else {
+                    send_all(client_fd, b, l);
+                    User* partner = find_user(state, target_id);
+                    if (partner && partner->is_online && partner->socket != INVALID_SOCKET) send_all(partner->socket, b, l);
+                }
+                free(b);
+                send_response(client_fd, CMD_SUCCESS, "Message pinned successfully");
+            } else {
+                send_response(client_fd, CMD_ERROR, "Message containing keyword not found");
+            }
             break;
         }
         case CMD_REMOVE_FRIEND: { 
@@ -1078,6 +1208,48 @@ void process_command(int client_fd, ProtocolMessage* msg, ClientSession* session
                  } else {
                      snprintf(group_name_info, sizeof(group_name_info), "[SYSTEM] Group Info Not Found");
                  }
+             }
+
+             // Check for PINNED message
+             char context_key[MAX_USERNAME * 2 + 2];
+             if (strncmp(target_id, "GRP_", 4) == 0) {
+                 strcpy(context_key, target_id);
+             } else {
+                 if (strcmp(current_user->username, target_id) < 0)
+                     snprintf(context_key, sizeof(context_key), "%s_%s", current_user->username, target_id);
+                 else
+                     snprintf(context_key, sizeof(context_key), "%s_%s", target_id, current_user->username);
+             }
+
+             FILE* pf = fopen("pinned_messages.txt", "r");
+             if (pf) {
+                 char pline[BUFFER_SIZE];
+                 while(fgets(pline, sizeof(pline), pf)) {
+                     char* tmp = strdup(pline);
+                     char* ctx = strtok(tmp, "|");
+                     char* psnd = strtok(NULL, "|");
+                     char* pts = strtok(NULL, "|");
+                     (void)pts;
+                     char* pcnt = strtok(NULL, "|");
+                     if (ctx && psnd && pcnt && strcmp(ctx, context_key) == 0) {
+                         trim_newline(pcnt);
+                         ProtocolMessage pin_msg; memset(&pin_msg, 0, sizeof(pin_msg));
+                         pin_msg.cmd = CMD_RECEIVE_MESSAGE;
+                         strcpy(pin_msg.sender, "PINNED_SYSTEM");
+                         snprintf(pin_msg.content, MAX_CONTENT, "%.100s: %.1900s", psnd, pcnt);
+                         int l; char* b = serialize_protocol_message(&pin_msg, &l);
+                         send_all(client_fd, b, l); free(b);
+                         #ifdef _WIN32
+                         Sleep(20);
+                         #else
+                         usleep(20000);
+                         #endif
+                         free(tmp);
+                         break;
+                     }
+                     free(tmp);
+                 }
+                 fclose(pf);
              }
 
              // Send Group Name Info First (if group)

@@ -19,6 +19,7 @@ char current_chat_partner[MAX_USERNAME] = "";
 #define MAX_HISTORY_DISPLAY 20
 char chat_history[MAX_HISTORY_DISPLAY][MAX_CONTENT];
 int history_count = 0;
+char current_pinned_msg[MAX_CONTENT] = "";
 int global_pending_friend_count = 0; // NEW: Persistent notification count
 
 // Group Shortcut Cache
@@ -125,7 +126,10 @@ void render_chat_screen() {
          printf("\033[1;34m [!] You have %d pending message(s) from %s\033[0m\n", 
                 pending_notifs[i].count, pending_notifs[i].sender);
     }
-    printf("--------------------------------------------------\n");
+    if (strlen(current_pinned_msg) > 0) {
+        printf("\033[1;34m PINNED: %s\033[0m\n", current_pinned_msg);
+        printf("--------------------------------------------------\n");
+    }
     for(int i=0; i<history_count; i++) {
         printf("%s\n", chat_history[i]);
     }
@@ -294,7 +298,12 @@ int main(int argc, char *argv[]) {
                              // 1. Sender matches Partner
                              // 2. AND Content does NOT look like a Group Message (`[Group ...`)
                              if (strcmp(msg->sender, current_chat_partner) == 0 && strncmp(msg->content, "[Group ", 7) != 0) {
-                                 show_in_chat = true;
+                                 if (strncmp(msg->sender, "PINNED_SYSTEM", 13) == 0) {
+                                  strncpy(current_pinned_msg, msg->content, MAX_CONTENT-1);
+                                  render_chat_screen();
+                              } else {
+                                  show_in_chat = true;
+                              }
                              }
                         }
                         // Case 2: Group Chat (Partner is Group ID)
@@ -322,7 +331,7 @@ int main(int argc, char *argv[]) {
                         if (strcmp(msg->sender, current_username) == 0 || 
                                  strncmp(msg->sender, "SEARCH", 6) == 0 ||
                                  strncmp(msg->sender, "HISTORY", 7) == 0 ||
-                                 strncmp(msg->sender, "SYSTEM", 6) == 0) {
+                                 strncmp(msg->sender, "SYSTEM", 6) == 0 || strncmp(msg->sender, "PINNED_SYSTEM", 13) == 0) {
                              show_in_chat = true;
                         }
                     }
@@ -522,6 +531,7 @@ int main(int argc, char *argv[]) {
                      int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                      
                      interaction_step = STATE_CHAT_MODE;
+                     memset(current_pinned_msg, 0, MAX_CONTENT); // Clear old pin before loading new one
                      render_chat_screen();
                 } else {
                      printf("Invalid username. Enter again: "); fflush(stdout);
@@ -532,7 +542,14 @@ int main(int argc, char *argv[]) {
                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); msg.cmd = CMD_EXIT_CHAT;
                     int l; char* b = serialize_protocol_message(&msg, &l); send_all(client_socket,b,l); free(b);
                     interaction_step = STATE_MAIN_MENU;
+                    memset(current_pinned_msg, 0, MAX_CONTENT);
                     render_main_menu();
+                } else if (strncmp(line, "/pin ", 5) == 0) {
+                    ProtocolMessage msg; memset(&msg, 0, sizeof(msg));
+                    msg.cmd = CMD_PIN_MESSAGE;
+                    strncpy(msg.content, line + 5, MAX_CONTENT - 1);
+                    int l; char* b = serialize_protocol_message(&msg, &l);
+                    send_all(client_socket, b, l); free(b);
                 } else {
                     // Send
                     ProtocolMessage msg; memset(&msg,0,sizeof(msg)); 
